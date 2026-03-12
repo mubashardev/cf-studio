@@ -2,6 +2,7 @@
 
 pub mod cloudflare_auth;
 pub mod cloudflare_client;
+pub mod d1;
 
 use cloudflare_auth::{read_credentials, AuthError, CloudflareCredentials};
 
