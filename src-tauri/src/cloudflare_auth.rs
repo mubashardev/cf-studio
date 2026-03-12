@@ -56,19 +56,69 @@ pub struct CloudflareCredentials {
 
 // ── Path resolution ────────────────────────────────────────────────────────────
 
-/// Returns the expected path to `default.toml`, regardless of platform.
+/// Returns candidate paths to search for the Wrangler `default.toml`, in
+/// priority order. We try multiple because Wrangler's storage location has
+/// changed across versions and differs per OS:
 ///
-/// - **macOS / Linux**: `~/.config/.wrangler/config/default.toml`
-/// - **Windows**:       `%USERPROFILE%\.config\.wrangler\config\default.toml`
-pub fn wrangler_config_path() -> Result<PathBuf, AuthError> {
-    // `dirs::home_dir()` handles all three platforms via OS APIs.
-    let home = dirs::home_dir().ok_or(AuthError::ConfigDirNotFound)?;
+/// | Platform | Path |
+/// |----------|------|
+/// | macOS    | `~/Library/Preferences/.wrangler/config/default.toml` |
+/// | Linux    | `~/.config/.wrangler/config/default.toml` |
+/// | Windows  | `%USERPROFILE%\.wrangler\config\default.toml` |
+///
+/// We also add `~/.wrangler/config/default.toml` as a universal fallback
+/// since older Wrangler versions stored it there on all platforms.
+fn wrangler_candidate_paths() -> Vec<PathBuf> {
+    let mut candidates: Vec<PathBuf> = Vec::new();
 
-    Ok(home
-        .join(".config")
-        .join(".wrangler")
-        .join("config")
-        .join("default.toml"))
+    // macOS: ~/Library/Preferences/.wrangler/config/default.toml
+    // Linux: ~/.config/.wrangler/config/default.toml
+    if let Some(pref) = dirs::preference_dir() {
+        candidates.push(pref.join(".wrangler").join("config").join("default.toml"));
+    }
+
+    // Linux / XDG: ~/.config/.wrangler/config/default.toml
+    if let Some(cfg) = dirs::config_dir() {
+        candidates.push(cfg.join(".wrangler").join("config").join("default.toml"));
+    }
+
+    // Universal fallback: ~/.wrangler/config/default.toml
+    if let Some(home) = dirs::home_dir() {
+        candidates.push(
+            home.join(".wrangler").join("config").join("default.toml"),
+        );
+        // Also try the old ~/.config/.wrangler path explicitly
+        candidates.push(
+            home.join(".config")
+                .join(".wrangler")
+                .join("config")
+                .join("default.toml"),
+        );
+    }
+
+    // De-duplicate while preserving order
+    let mut seen = std::collections::HashSet::new();
+    candidates.retain(|p| seen.insert(p.clone()));
+    candidates
+}
+
+/// Returns the first existing Wrangler config path, or the primary candidate
+/// path for use in error messages when none are found.
+pub fn wrangler_config_path() -> Result<PathBuf, AuthError> {
+    let candidates = wrangler_candidate_paths();
+    if candidates.is_empty() {
+        return Err(AuthError::ConfigDirNotFound);
+    }
+
+    // Return the first path that actually exists on disk
+    if let Some(existing) = candidates.iter().find(|p| p.exists()) {
+        return Ok(existing.clone());
+    }
+
+    // None existed — return the primary candidate for a good error message
+    Err(AuthError::ConfigFileNotFound(
+        candidates[0].to_string_lossy().into_owned(),
+    ))
 }
 
 // ── Core parsing logic ─────────────────────────────────────────────────────────
@@ -76,18 +126,9 @@ pub fn wrangler_config_path() -> Result<PathBuf, AuthError> {
 /// Reads and parses the Wrangler config, returning the extracted credentials.
 pub fn read_credentials() -> Result<CloudflareCredentials, AuthError> {
     let path = wrangler_config_path()?;
-
-    if !path.exists() {
-        return Err(AuthError::ConfigFileNotFound(
-            path.to_string_lossy().into_owned(),
-        ));
-    }
-
     let raw = fs::read_to_string(&path)?;
     let config: WranglerConfig = toml::from_str(&raw)?;
-
     let oauth_token = config.oauth_token.ok_or(AuthError::NoToken)?;
-
     Ok(CloudflareCredentials {
         oauth_token,
         account_id: config.account_id,

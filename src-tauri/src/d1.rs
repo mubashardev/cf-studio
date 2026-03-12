@@ -19,7 +19,7 @@ pub enum D1Error {
     #[error("HTTP error: {0}")]
     Http(#[from] reqwest::Error),
 
-    #[error("No account_id available. Add `account_id` to your wrangler config or set it explicitly.")]
+    #[error("Could not determine your Cloudflare account ID. Your account may not have API access.")]
     NoAccountId,
 
     #[error("Cloudflare API error(s): {0}")]
@@ -32,7 +32,15 @@ impl Serialize for D1Error {
     }
 }
 
-// ── D1 API types ───────────────────────────────────────────────────────────────
+// ── API types ──────────────────────────────────────────────────────────────────
+
+/// Minimal account info from `GET /accounts`.
+#[derive(Debug, Deserialize)]
+struct CfAccount {
+    id: String,
+    #[allow(dead_code)]
+    name: Option<String>,
+}
 
 /// A single D1 database as returned by the Cloudflare list endpoint.
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -45,7 +53,7 @@ pub struct D1Database {
     pub file_size: Option<u64>,
 }
 
-// ── Helper: format API errors into a readable string ──────────────────────────
+// ── Helper ─────────────────────────────────────────────────────────────────────
 
 fn api_errors_to_string(errors: &[CfError]) -> String {
     errors
@@ -55,7 +63,31 @@ fn api_errors_to_string(errors: &[CfError]) -> String {
         .join("; ")
 }
 
-// ── Core async function (shared by the Tauri command and future callers) ───────
+// ── Account ID resolution ──────────────────────────────────────────────────────
+
+/// Fetches the first Cloudflare account visible to the OAuth token.
+/// Used when the Wrangler config file doesn't contain `account_id`.
+async fn resolve_account_id(client: &CloudflareClient) -> Result<String, D1Error> {
+    let resp = client
+        .get("accounts")
+        .send()
+        .await?
+        .json::<CfResponse<Vec<CfAccount>>>()
+        .await?;
+
+    if !resp.success {
+        return Err(D1Error::Api(api_errors_to_string(&resp.errors)));
+    }
+
+    let accounts = resp.result.unwrap_or_default();
+    accounts
+        .into_iter()
+        .next()
+        .map(|a| a.id)
+        .ok_or(D1Error::NoAccountId)
+}
+
+// ── Core async fn ──────────────────────────────────────────────────────────────
 
 pub async fn list_databases(
     client: &CloudflareClient,
@@ -78,7 +110,11 @@ pub async fn list_databases(
 // ── Tauri command ──────────────────────────────────────────────────────────────
 
 /// Invoked by the React frontend to list all D1 databases for the authenticated
-/// Cloudflare account. Reads credentials from the local Wrangler session.
+/// Cloudflare account.
+///
+/// Account resolution order:
+/// 1. `account_id` field in `~/.wrangler/config/default.toml` (rare)
+/// 2. Auto-fetched from `GET /accounts` using the OAuth token (typical)
 #[tauri::command]
 pub async fn fetch_d1_databases() -> Result<Vec<D1Database>, D1Error> {
     // Read credentials — offload blocking I/O to the thread-pool.
@@ -91,8 +127,13 @@ pub async fn fetch_d1_databases() -> Result<Vec<D1Database>, D1Error> {
             )))
         })?;
 
-    let account_id = creds.account_id.ok_or(D1Error::NoAccountId)?;
     let client = CloudflareClient::new(&creds.oauth_token)?;
+
+    // Use the account_id from Wrangler config if present, otherwise fetch it.
+    let account_id = match creds.account_id {
+        Some(id) => id,
+        None => resolve_account_id(&client).await?,
+    };
 
     list_databases(&client, &account_id).await
 }
