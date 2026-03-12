@@ -38,6 +38,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             get_cloudflare_token,
+            d1::fetch_d1_databases,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

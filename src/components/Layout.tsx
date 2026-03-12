@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { DatabasesView } from "@/components/DatabasesView";
 import {
   Database,
   KeyRound,
@@ -181,12 +182,20 @@ function TitleBar({ collapsed, onToggle, title }: TitleBarProps) {
   );
 }
 
-// ── Layout ─────────────────────────────────────────────────────────────────────
-interface LayoutProps {
-  children: React.ReactNode;
+// ── Simple page router ────────────────────────────────────────────────────────
+function PageContent({ activeId }: { activeId: string }) {
+  if (activeId === "d1") return <DatabasesView />;
+  // KV and Settings views will be added in subsequent steps
+  return (
+    <div className="flex flex-col items-center justify-center h-full text-center gap-2">
+      <p className="text-muted-foreground text-sm">Coming soon</p>
+    </div>
+  );
 }
 
-export function Layout({ children }: LayoutProps) {
+// ── Layout ─────────────────────────────────────────────────────────────────────
+
+export function Layout() {
   const [collapsed, setCollapsed] = useState(false);
   const [activeId, setActiveId] = useState("d1");
 
@@ -212,8 +221,8 @@ export function Layout({ children }: LayoutProps) {
         />
 
         {/* Content area */}
-        <main className="flex-1 overflow-y-auto p-6">
-          {children}
+        <main className="flex-1 overflow-hidden p-6">
+          <PageContent activeId={activeId} />
         </main>
       </div>
     </div>
