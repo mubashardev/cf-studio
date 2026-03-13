@@ -1,10 +1,10 @@
 // DatabasesView.tsx
 //
-// D1 Databases listing page — auto-fetches from the Cloudflare API
-// using the local Wrangler session. Shows a rich table on success,
-// or a contextual empty-state on auth / API errors.
+// D1 Databases listing page — auto-fetches from the Cloudflare API.
+// Clicking a row drills into DatabaseExplorer for schema inspection.
 
-import { RefreshCw, Database, Terminal, AlertCircle, Loader2, HardDrive } from "lucide-react";
+import { useState } from "react";
+import { RefreshCw, Database, Terminal, AlertCircle, Loader2, HardDrive, ChevronRight } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useD1Databases, type D1Database } from "@/hooks/useCloudflare";
+import { DatabaseExplorer } from "@/components/DatabaseExplorer";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -45,18 +46,13 @@ function formatBytes(bytes?: number): string {
 function LoadingSkeleton() {
   return (
     <div className="w-full space-y-0 rounded-lg border border-border overflow-hidden">
-      {/* header */}
       <div className="grid grid-cols-4 border-b border-border bg-muted/40 px-4 py-2.5">
         {["Name", "Database ID", "Created At", "Size"].map((h) => (
           <div key={h} className="h-3.5 w-16 rounded bg-muted animate-pulse" />
         ))}
       </div>
-      {/* rows */}
       {Array.from({ length: 5 }).map((_, i) => (
-        <div
-          key={i}
-          className="grid grid-cols-4 border-b border-border px-4 py-3.5 last:border-0"
-        >
+        <div key={i} className="grid grid-cols-4 border-b border-border px-4 py-3.5 last:border-0">
           <div className="h-3.5 w-32 rounded bg-muted/60 animate-pulse" />
           <div className="h-3.5 w-48 rounded bg-muted/40 animate-pulse" />
           <div className="h-3.5 w-28 rounded bg-muted/40 animate-pulse" />
@@ -131,12 +127,7 @@ function EmptyState({ variant, message, onRefresh }: EmptyStateProps) {
         <h2 className="text-base font-semibold text-foreground">{title}</h2>
         <div className="text-sm text-muted-foreground leading-relaxed text-left">{body}</div>
       </div>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={onRefresh}
-        className="gap-1.5 mt-1"
-      >
+      <Button variant="outline" size="sm" onClick={onRefresh} className="gap-1.5 mt-1">
         <RefreshCw size={13} strokeWidth={2} />
         Refresh
       </Button>
@@ -146,17 +137,21 @@ function EmptyState({ variant, message, onRefresh }: EmptyStateProps) {
 
 // ── Database row ───────────────────────────────────────────────────────────────
 
-function DatabaseRow({ db }: { db: D1Database }) {
+interface DatabaseRowProps {
+  db: D1Database;
+  onClick: (db: D1Database) => void;
+}
+
+function DatabaseRow({ db, onClick }: DatabaseRowProps) {
   return (
-    <TableRow className="group cursor-default hover:bg-muted/30 transition-colors">
+    <TableRow
+      onClick={() => onClick(db)}
+      className="group cursor-pointer hover:bg-accent/40 transition-colors"
+    >
       {/* Name */}
       <TableCell className="font-medium text-foreground py-3.5">
         <div className="flex items-center gap-2">
-          <Database
-            size={13}
-            strokeWidth={1.75}
-            className="text-primary shrink-0"
-          />
+          <Database size={13} strokeWidth={1.75} className="text-primary shrink-0" />
           <span className="truncate max-w-[200px]">{db.name}</span>
         </div>
       </TableCell>
@@ -176,10 +171,7 @@ function DatabaseRow({ db }: { db: D1Database }) {
       {/* Version */}
       <TableCell className="py-3.5">
         {db.version ? (
-          <Badge
-            variant="secondary"
-            className="font-mono text-[10px] uppercase tracking-wide"
-          >
+          <Badge variant="secondary" className="font-mono text-[10px] uppercase tracking-wide">
             {db.version}
           </Badge>
         ) : (
@@ -194,31 +186,39 @@ function DatabaseRow({ db }: { db: D1Database }) {
           {formatBytes(db.file_size)}
         </div>
       </TableCell>
+
+      {/* Chevron hint */}
+      <TableCell className="py-3.5 w-6 pr-3">
+        <ChevronRight
+          size={13}
+          strokeWidth={1.75}
+          className="text-muted-foreground/30 group-hover:text-muted-foreground transition-colors"
+        />
+      </TableCell>
     </TableRow>
   );
 }
 
-// ── Main view ──────────────────────────────────────────────────────────────────
+// ── Database list view ─────────────────────────────────────────────────────────
 
-export function DatabasesView() {
+interface DatabaseListProps {
+  onSelect: (db: D1Database) => void;
+}
+
+function DatabaseList({ onSelect }: DatabaseListProps) {
   const { state, refresh } = useD1Databases();
-
-  // ── Header ──
   const isLoading = state.status === "loading" || state.status === "idle";
 
   return (
     <div className="flex flex-col gap-5 h-full">
-      {/* Page header */}
+      {/* Header */}
       <div className="flex items-center justify-between gap-4 shrink-0">
         <div>
-          <h1 className="text-lg font-semibold tracking-tight text-foreground">
-            Databases
-          </h1>
+          <h1 className="text-lg font-semibold tracking-tight text-foreground">Databases</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             D1 databases attached to your Cloudflare account
           </p>
         </div>
-
         <Button
           variant="ghost"
           size="icon"
@@ -227,85 +227,58 @@ export function DatabasesView() {
           aria-label="Refresh databases"
           className="text-muted-foreground hover:text-foreground"
         >
-          <RefreshCw
-            size={14}
-            strokeWidth={2}
-            className={cn(isLoading && "animate-spin")}
-          />
+          <RefreshCw size={14} strokeWidth={2} className={cn(isLoading && "animate-spin")} />
         </Button>
       </div>
 
       {/* Content */}
       <div className="flex-1 overflow-hidden">
-        {/* Loading */}
-        {(state.status === "idle" || state.status === "loading") && (
-          <LoadingSkeleton />
-        )}
+        {isLoading && <LoadingSkeleton />}
 
-        {/* Auth / no-token error */}
         {state.status === "error" &&
           (state.message.toLowerCase().includes("wrangler") ||
             state.message.toLowerCase().includes("oauth") ||
             state.message.toLowerCase().includes("not found")) && (
-            <EmptyState
-              variant="no-auth"
-              message={state.message}
-              onRefresh={refresh}
-            />
+            <EmptyState variant="no-auth" message={state.message} onRefresh={refresh} />
           )}
 
-        {/* Other API errors */}
         {state.status === "error" &&
           !state.message.toLowerCase().includes("wrangler") &&
           !state.message.toLowerCase().includes("oauth") &&
           !state.message.toLowerCase().includes("not found") && (
-            <EmptyState
-              variant="api-error"
-              message={state.message}
-              onRefresh={refresh}
-            />
+            <EmptyState variant="api-error" message={state.message} onRefresh={refresh} />
           )}
 
-        {/* Empty database list */}
         {state.status === "success" && state.data.length === 0 && (
           <EmptyState variant="no-databases" onRefresh={refresh} />
         )}
 
-        {/* Database table */}
         {state.status === "success" && state.data.length > 0 && (
           <div className="rounded-lg border border-border overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/30 hover:bg-muted/30">
-                  <TableHead className="w-[200px] text-xs font-medium uppercase tracking-wider text-muted-foreground py-2.5">
-                    Name
-                  </TableHead>
-                  <TableHead className="text-xs font-medium uppercase tracking-wider text-muted-foreground py-2.5">
-                    Database ID
-                  </TableHead>
-                  <TableHead className="text-xs font-medium uppercase tracking-wider text-muted-foreground py-2.5">
-                    Created At
-                  </TableHead>
-                  <TableHead className="w-[100px] text-xs font-medium uppercase tracking-wider text-muted-foreground py-2.5">
-                    Version
-                  </TableHead>
-                  <TableHead className="w-[100px] text-xs font-medium uppercase tracking-wider text-muted-foreground py-2.5">
-                    Size
-                  </TableHead>
+                  {["Name", "Database ID", "Created At", "Version", "Size", ""].map((h) => (
+                    <TableHead
+                      key={h}
+                      className="text-xs font-medium uppercase tracking-wider text-muted-foreground py-2.5"
+                    >
+                      {h}
+                    </TableHead>
+                  ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {state.data.map((db) => (
-                  <DatabaseRow key={db.uuid} db={db} />
+                  <DatabaseRow key={db.uuid} db={db} onClick={onSelect} />
                 ))}
               </TableBody>
             </Table>
 
-            {/* Footer */}
             <div className="flex items-center gap-1.5 border-t border-border bg-muted/20 px-4 py-2">
               <Loader2 size={11} className="text-muted-foreground/40 hidden" />
               <span className="text-xs text-muted-foreground/60">
-                {state.data.length} database{state.data.length !== 1 ? "s" : ""}
+                {state.data.length} database{state.data.length !== 1 ? "s" : ""} — click a row to explore
               </span>
             </div>
           </div>
@@ -313,4 +286,21 @@ export function DatabasesView() {
       </div>
     </div>
   );
+}
+
+// ── Root view — manages selected database state ────────────────────────────────
+
+export function DatabasesView() {
+  const [selectedDb, setSelectedDb] = useState<D1Database | null>(null);
+
+  if (selectedDb) {
+    return (
+      <DatabaseExplorer
+        database={selectedDb}
+        onBack={() => setSelectedDb(null)}
+      />
+    );
+  }
+
+  return <DatabaseList onSelect={setSelectedDb} />;
 }
