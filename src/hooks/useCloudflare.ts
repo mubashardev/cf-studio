@@ -8,6 +8,14 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import {
+  useAppStore,
+  isCacheStale,
+  selectDatabases,
+  selectLastFetched,
+  selectSetDatabases,
+} from "@/store/useAppStore";
+
 
 // ── Types mirroring Rust structs ───────────────────────────────────────────────
 
@@ -30,6 +38,7 @@ export interface D1QueryMeta {
   rows_read?: number;
   rows_written?: number;
   changes?: number;
+  last_row_id?: number;
 }
 
 export interface D1QueryResult {
@@ -80,26 +89,44 @@ export function useCloudflareAuth() {
 // ── D1 Databases hook ──────────────────────────────────────────────────────────
 
 export function useD1Databases() {
-  const [state, setState] = useState<AsyncState<D1Database[]>>({
-    status: "idle",
-  });
+  const cached     = useAppStore(selectDatabases);
+  const lastFetched = useAppStore(selectLastFetched);
+  const setDatabases = useAppStore(selectSetDatabases);
 
-  const fetch = useCallback(async () => {
+  // Seed local state from cache immediately (synchronous — no flicker)
+  const [state, setState] = useState<AsyncState<D1Database[]>>(() =>
+    cached.length > 0 && !isCacheStale(lastFetched)
+      ? { status: "success", data: cached }
+      : { status: "idle" }
+  );
+
+  const [isFromCache, setIsFromCache] = useState(
+    cached.length > 0 && !isCacheStale(lastFetched)
+  );
+
+  /** Always hits the network; use for manual refresh button. */
+  const fetchFromApi = useCallback(async () => {
     setState({ status: "loading" });
+    setIsFromCache(false);
     try {
       const databases = await invoke<D1Database[]>("fetch_d1_databases");
+      setDatabases(databases);           // write to persistent cache
       setState({ status: "success", data: databases });
     } catch (err) {
       setState({ status: "error", message: String(err) });
     }
-  }, []);
+  }, [setDatabases]);
 
   useEffect(() => {
-    fetch();
-  }, [fetch]);
+    // Skip the network hit if the cache is still fresh.
+    if (cached.length > 0 && !isCacheStale(lastFetched)) return;
+    fetchFromApi();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally run once on mount
 
-  return { state, refresh: fetch };
+  return { state, refresh: fetchFromApi, isFromCache };
 }
+
 
 // ── D1 Schema hook ─────────────────────────────────────────────────────────────
 
@@ -174,4 +201,63 @@ let resolvedAccountId = "";
 
 export function setResolvedAccountId(id: string) {
   resolvedAccountId = id;
+}
+
+// ── D1 Table Data hook ─────────────────────────────────────────────────────────
+
+const PAGE_LIMIT = 100;
+
+export interface D1TableData {
+  columns: string[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  rows: Record<string, any>[];
+  totalFetched: number;
+  offset: number;
+  limit: number;
+}
+
+/**
+ * Fetches paginated row data from a specific D1 table.
+ * Re-fires automatically when `databaseId`, `tableName`, or `offset` changes.
+ */
+export function useD1TableData(
+  databaseId: string,
+  tableName: string,
+  offset: number = 0
+) {
+  const [state, setState] = useState<AsyncState<D1TableData>>({
+    status: "idle",
+  });
+
+  const fetch = useCallback(async () => {
+    if (!databaseId || !tableName) return;
+    setState({ status: "loading" });
+    try {
+      const accountId = resolvedAccountId;
+      const sql = `SELECT * FROM "${tableName}" LIMIT ${PAGE_LIMIT} OFFSET ${offset};`;
+
+      const queryResults = await invoke<D1QueryResult[]>("execute_d1_query", {
+        accountId,
+        databaseId,
+        sqlQuery: sql,
+        params: null,
+      });
+
+      const rows = queryResults[0]?.results ?? [];
+      const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
+
+      setState({
+        status: "success",
+        data: { columns, rows, totalFetched: rows.length, offset, limit: PAGE_LIMIT },
+      });
+    } catch (err) {
+      setState({ status: "error", message: String(err) });
+    }
+  }, [databaseId, tableName, offset]);
+
+  useEffect(() => {
+    fetch();
+  }, [fetch]);
+
+  return { state, refresh: fetch };
 }
