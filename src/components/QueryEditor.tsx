@@ -13,7 +13,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import {
   Table, TableBody, TableCell,
   TableHead, TableHeader, TableRow,
@@ -59,9 +59,9 @@ function ResultTable({
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <ScrollArea className="flex-1">
-        <div className="overflow-x-auto min-w-full">
-          <Table>
+      <div className="flex-1 overflow-auto">
+        <div className="min-w-max">
+        <Table>
             <TableHeader>
               <TableRow className="bg-muted/30 hover:bg-muted/30">
                 <TableHead className="w-10 text-center text-[10px] text-muted-foreground/40 font-mono py-2 px-2">#</TableHead>
@@ -100,8 +100,8 @@ function ResultTable({
               ))}
             </TableBody>
           </Table>
+          </div>{/* min-w-max */}
         </div>
-      </ScrollArea>
 
       {/* Pagination */}
       <div className="flex items-center justify-between border-t border-border bg-muted/20 px-4 py-1.5 shrink-0">

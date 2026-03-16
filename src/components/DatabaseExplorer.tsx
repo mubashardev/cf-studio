@@ -216,61 +216,62 @@ function DataTab({ databaseId, table }: DataTabProps) {
         )}
 
         {state.status === "success" && state.data.rows.length > 0 && (
-          <ScrollArea className="h-full w-full">
-            <div className="overflow-x-auto min-w-full">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/30 hover:bg-muted/30">
-                    {/* Row number gutter */}
-                    <TableHead className="w-10 text-center text-[10px] text-muted-foreground/40 font-mono py-2.5 px-2 shrink-0">
-                      #
-                    </TableHead>
-                    {state.data.columns.map((col) => (
-                      <TableHead
-                        key={col}
-                        className="text-xs font-medium uppercase tracking-wider text-muted-foreground py-2.5 whitespace-nowrap"
-                      >
-                        {col}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {state.data.rows.map((row, ri) => (
-                    <TableRow
-                      key={ri}
-                      className="hover:bg-accent/30 transition-colors font-mono text-xs"
+          <div className="h-full w-full overflow-auto">
+            <div className="min-w-max">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/30 hover:bg-muted/30 sticky top-0 z-10">
+                  {/* Row number gutter */}
+                  <TableHead className="w-10 text-center text-[10px] text-muted-foreground/40 font-mono py-2.5 px-2 shrink-0">
+                    #
+                  </TableHead>
+                  {state.data.columns.map((col) => (
+                    <TableHead
+                      key={col}
+                      className="text-xs font-medium uppercase tracking-wider text-muted-foreground py-2.5 whitespace-nowrap"
                     >
-                      {/* Row number */}
-                      <TableCell className="text-center text-muted-foreground/30 py-2.5 px-2 select-none tabular-nums">
-                        {state.data.offset + ri + 1}
-                      </TableCell>
-                      {state.data.columns.map((col) => {
-                        const val = row[col];
-                        const isNull = val === null || val === undefined;
-                        const isNum = typeof val === "number";
-                        return (
-                          <TableCell
-                            key={col}
-                            className={cn(
-                              "py-2.5 max-w-[260px] truncate",
-                              isNull && "text-muted-foreground/30 italic",
-                              isNum && "text-sky-400 tabular-nums",
-                              !isNull && !isNum && "text-foreground"
-                            )}
-                            title={isNull ? "NULL" : String(val)}
-                          >
-                            {isNull ? "NULL" : String(val)}
-                          </TableCell>
-                        );
-                      })}
-                    </TableRow>
+                      {col}
+                    </TableHead>
                   ))}
-                </TableBody>
-              </Table>
-            </div>
-          </ScrollArea>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {state.data.rows.map((row, ri) => (
+                  <TableRow
+                    key={ri}
+                    className="hover:bg-accent/30 transition-colors font-mono text-xs"
+                  >
+                    {/* Row number */}
+                    <TableCell className="text-center text-muted-foreground/30 py-2.5 px-2 select-none tabular-nums">
+                      {state.data.offset + ri + 1}
+                    </TableCell>
+                    {state.data.columns.map((col) => {
+                      const val = row[col];
+                      const isNull = val === null || val === undefined;
+                      const isNum = typeof val === "number";
+                      return (
+                        <TableCell
+                          key={col}
+                          className={cn(
+                            "py-2.5 max-w-[260px] truncate",
+                            isNull && "text-muted-foreground/30 italic",
+                            isNum && "text-sky-400 tabular-nums",
+                            !isNull && !isNum && "text-foreground"
+                          )}
+                          title={isNull ? "NULL" : String(val)}
+                        >
+                          {isNull ? "NULL" : String(val)}
+                        </TableCell>
+                      );
+                    })}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            </div>{/* min-w-max */}
+          </div>
         )}
+
       </div>
 
       {/* Pagination footer */}
