@@ -11,6 +11,13 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import type { D1Database } from "@/hooks/useCloudflare";
 
+export interface UserProfile {
+  id: string;
+  email: string;
+  first_name?: string | null;
+  last_name?: string | null;
+}
+
 // ── KV placeholder type (populated in a future step) ─────────────────────────
 
 export interface KVNamespace {
@@ -33,6 +40,7 @@ export function isCacheStale(lastFetched: number | null): boolean {
 
 interface AppState {
   // ── Cached data ──
+  userProfile: UserProfile | null;
   databases: D1Database[];
   kvNamespaces: KVNamespace[];
 
@@ -43,6 +51,7 @@ interface AppState {
   kvLastFetched: number | null;
 
   // ── Actions ──
+  setUserProfile: (profile: UserProfile | null) => void;
 
   /** Overwrite the databases list and stamp the fetch time. */
   setDatabases: (databases: D1Database[]) => void;
@@ -63,12 +72,14 @@ export const useAppStore = create<AppState>()(
   persist(
     (set) => ({
       // ── Initial state ──
+      userProfile: null,
       databases: [],
       kvNamespaces: [],
       lastFetched: null,
       kvLastFetched: null,
 
       // ── Actions ──
+      setUserProfile: (profile) => set({ userProfile: profile }),
       setDatabases: (databases) =>
         set({ databases, lastFetched: Date.now() }),
 
@@ -77,6 +88,7 @@ export const useAppStore = create<AppState>()(
 
       clearCache: () =>
         set({
+          userProfile: null,
           databases: [],
           kvNamespaces: [],
           lastFetched: null,
@@ -88,6 +100,7 @@ export const useAppStore = create<AppState>()(
       storage: createJSONStorage(() => localStorage),
       // Only persist the data fields — actions are not serialisable.
       partialize: (state) => ({
+        userProfile: state.userProfile,
         databases: state.databases,
         kvNamespaces: state.kvNamespaces,
         lastFetched: state.lastFetched,

@@ -3,6 +3,7 @@
 pub mod cloudflare_auth;
 pub mod cloudflare_client;
 pub mod d1;
+pub mod user;
 
 use cloudflare_auth::{read_credentials, AuthError, CloudflareCredentials};
 
@@ -40,6 +41,7 @@ pub fn run() {
             get_cloudflare_token,
             d1::fetch_d1_databases,
             d1::execute_d1_query,
+            user::fetch_user_profile,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

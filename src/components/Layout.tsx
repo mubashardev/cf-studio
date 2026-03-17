@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { DatabasesView } from "@/components/DatabasesView";
 import {
@@ -12,9 +12,13 @@ import {
   Monitor,
   CloudCog,
   RefreshCw,
+  Box,
+  Activity,
+  ScrollText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme, type Theme } from "@/components/ThemeProvider";
+import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
   TooltipContent,
@@ -24,20 +28,47 @@ import {
 import {
   useAppStore,
   selectSetDatabases,
+  // We need UserProfile type from store
+  type UserProfile,
 } from "@/store/useAppStore";
 import type { D1Database } from "@/hooks/useCloudflare";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+
 interface NavItem {
   id: string;
   label: string;
   icon: React.ElementType;
+  disabled?: boolean;
+  badge?: string;
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { id: "d1",       label: "Databases (D1)",  icon: Database  },
-  { id: "kv",       label: "KV Namespaces",   icon: KeyRound  },
-  { id: "settings", label: "Settings",        icon: Settings  },
+const NAV_GROUPS: NavGroup[] = [
+  {
+    label: "Storage & Data",
+    items: [
+      { id: "d1",       label: "Databases (D1)", icon: Database },
+      { id: "kv",       label: "KV Namespaces",  icon: KeyRound },
+      { id: "r2",       label: "R2 Buckets",     icon: Box,        disabled: true, badge: "Soon" },
+    ],
+  },
+  {
+    label: "Compute",
+    items: [
+      { id: "vectorize", label: "Vectorize",    icon: Activity,   disabled: true, badge: "Soon" },
+    ],
+  },
+  {
+    label: "System",
+    items: [
+      { id: "logs",     label: "Workers Logs",   icon: ScrollText, disabled: true, badge: "Pro" },
+      { id: "settings", label: "Settings",       icon: Settings },
+    ],
+  },
 ];
 
 const THEME_OPTIONS: { value: Theme; icon: React.ElementType; label: string }[] = [
@@ -51,16 +82,17 @@ interface SidebarProps {
   collapsed: boolean;
   activeId: string;
   onNavigate: (id: string) => void;
+  userProfile: UserProfile | null;
 }
 
-function Sidebar({ collapsed, activeId, onNavigate }: SidebarProps) {
+function Sidebar({ collapsed, activeId, onNavigate, userProfile }: SidebarProps) {
   const { theme, setTheme } = useTheme();
 
   return (
     <aside
       className={cn(
         "flex flex-col h-full border-r border-sidebar-border bg-sidebar",
-        "transition-[width] duration-200 ease-in-out overflow-hidden",
+        "transition-[width] duration-200 ease-in-out overflow-hidden shrink-0",
         collapsed ? "w-[52px]" : "w-[220px]"
       )}
     >
@@ -84,38 +116,74 @@ function Sidebar({ collapsed, activeId, onNavigate }: SidebarProps) {
       </div>
 
       {/* Nav Items */}
-      <nav className="flex-1 flex flex-col gap-0.5 px-1.5 py-2 overflow-y-auto">
-        {NAV_ITEMS.map(({ id, label, icon: Icon }) => {
-          const active = activeId === id;
-          return (
-            <button
-              key={id}
-              onClick={() => onNavigate(id)}
-              title={collapsed ? label : undefined}
-              className={cn(
-                "group flex items-center gap-2.5 w-full rounded-md px-2 py-1.5",
-                "text-sm font-medium transition-colors duration-100",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                active
-                  ? "bg-sidebar-accent text-sidebar-primary"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
-              )}
-            >
-              <Icon
-                size={16}
-                strokeWidth={active ? 2 : 1.75}
-                className={cn(
-                  "shrink-0 transition-colors",
-                  active ? "text-sidebar-primary" : "text-sidebar-foreground/50 group-hover:text-sidebar-foreground"
-                )}
-              />
-              {!collapsed && (
-                <span className="whitespace-nowrap">{label}</span>
-              )}
-            </button>
-          );
-        })}
+      <nav className="flex-1 flex flex-col gap-4 px-1.5 py-4 overflow-y-auto">
+        {NAV_GROUPS.map((group) => (
+          <div key={group.label} className="flex flex-col gap-0.5">
+            {!collapsed && (
+              <span className="px-2 mb-1 text-[10px] uppercase font-bold tracking-widest text-sidebar-foreground/40 shrink-0">
+                {group.label}
+              </span>
+            )}
+            {group.items.map(({ id, label, icon: Icon, disabled, badge }) => {
+              const active = activeId === id;
+              return (
+                <button
+                  key={id}
+                  onClick={() => !disabled && onNavigate(id)}
+                  disabled={disabled}
+                  title={collapsed ? label : undefined}
+                  className={cn(
+                    "group flex items-center gap-2.5 w-full rounded-md px-2 py-1.5",
+                    "text-sm font-medium transition-colors duration-100",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring text-left",
+                    active
+                      ? "bg-sidebar-accent text-sidebar-primary"
+                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+                    disabled && "opacity-50 cursor-not-allowed hover:bg-transparent hover:text-sidebar-foreground/70"
+                  )}
+                >
+                  <Icon
+                    size={16}
+                    strokeWidth={active ? 2 : 1.75}
+                    className={cn(
+                      "shrink-0 transition-colors",
+                      active ? "text-sidebar-primary" : "text-sidebar-foreground/50 group-hover:text-sidebar-foreground"
+                    )}
+                  />
+                  {!collapsed && (
+                    <span className="whitespace-nowrap flex-1 truncate">{label}</span>
+                  )}
+                  {!collapsed && badge && (
+                    <Badge variant="secondary" className="px-1.5 py-0 text-[9px] h-4 bg-sidebar-border/50 text-sidebar-foreground/50 shrink-0">
+                      {badge}
+                    </Badge>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        ))}
       </nav>
+
+      {/* User Profile */}
+      {!collapsed && userProfile && (
+        <div className="px-3 py-3 border-t border-sidebar-border shrink-0 flex items-center gap-2.5 bg-sidebar-accent/10">
+          <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs shrink-0 uppercase">
+            {userProfile.first_name ? userProfile.first_name[0] : userProfile.email[0]}
+            {userProfile.last_name ? userProfile.last_name[0] : ""}
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-sm font-medium text-sidebar-foreground leading-tight truncate">
+              {userProfile.first_name && userProfile.last_name
+                ? `${userProfile.first_name} ${userProfile.last_name}`
+                : userProfile.first_name || "Cloudflare User"}
+            </span>
+            <span className="text-[10px] text-sidebar-foreground/50 leading-tight truncate">
+              {userProfile.email}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Theme Switcher */}
       {!collapsed && (
@@ -244,8 +312,19 @@ export function Layout() {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const setDatabases = useAppStore(selectSetDatabases);
+  const userProfile = useAppStore(s => s.userProfile);
+  const setUserProfile = useAppStore(s => s.setUserProfile);
 
-  const currentNav = NAV_ITEMS.find((n) => n.id === activeId);
+  // Fetch User Profile on mount
+  useEffect(() => {
+    if (!userProfile) {
+      invoke<UserProfile>("fetch_user_profile")
+        .then(profile => setUserProfile(profile))
+        .catch(console.error);
+    }
+  }, [userProfile, setUserProfile]);
+
+  const currentNav = NAV_GROUPS.flatMap(g => g.items).find((n) => n.id === activeId);
   const pageTitle = currentNav?.label ?? "CF Studio";
 
   /** Bypasses the cache — always fetches fresh data from Cloudflare. */
@@ -275,6 +354,7 @@ export function Layout() {
           collapsed={collapsed}
           activeId={activeId}
           onNavigate={setActiveId}
+          userProfile={userProfile}
         />
 
         {/* Main column */}

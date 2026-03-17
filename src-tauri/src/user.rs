@@ -37,10 +37,6 @@ impl Serialize for UserError {
     }
 }
 
-lazy_static::lazy_static! {
-    static ref HTTP_CLIENT: Client = Client::new();
-}
-
 #[tauri::command]
 pub async fn fetch_user_profile() -> Result<UserProfile, UserError> {
     // 1. Get token
@@ -48,7 +44,8 @@ pub async fn fetch_user_profile() -> Result<UserProfile, UserError> {
 
     // 2. Make request
     let url = "https://api.cloudflare.com/client/v4/user";
-    let res = HTTP_CLIENT
+    let client = Client::new();
+    let res = client
         .get(url)
         .header("Authorization", format!("Bearer {}", creds.oauth_token))
         .header("Content-Type", "application/json")
