@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+import { open } from '@tauri-apps/plugin-shell';
 import { DatabasesView } from "@/components/DatabasesView";
 import {
   Database,
@@ -14,6 +15,7 @@ import {
   Box,
   Activity,
   ScrollText,
+  Github,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme, type Theme } from "@/components/ThemeProvider";
@@ -166,24 +168,39 @@ function Sidebar({ collapsed, activeId, onNavigate, userProfile }: SidebarProps)
       </nav>
 
       {/* User Profile */}
-      {!collapsed && userProfile && (
-        <div className="px-3 py-3 border-t border-sidebar-border shrink-0 flex items-center gap-2.5 bg-sidebar-accent/10">
-          <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs shrink-0 uppercase">
-            {userProfile.first_name ? userProfile.first_name[0] : userProfile.email[0]}
-            {userProfile.last_name ? userProfile.last_name[0] : ""}
+      {!collapsed && userProfile && (() => {
+        let displayName = userProfile.first_name && userProfile.last_name 
+          ? `${userProfile.first_name} ${userProfile.last_name}`
+          : userProfile.first_name || "Cloudflare User";
+
+        if (displayName === "Cloudflare User" || !displayName.trim()) {
+          const fallback = userProfile.email.split('@')[0];
+          displayName = fallback.charAt(0).toUpperCase() + fallback.slice(1);
+        }
+
+        const initials = displayName
+          .split(/[\s_-]+/)
+          .map(n => n[0])
+          .join('')
+          .substring(0, 2)
+          .toUpperCase();
+
+        return (
+          <div className="px-3 py-3 border-t border-sidebar-border shrink-0 flex items-center gap-2.5 bg-sidebar-accent/10">
+            <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs shrink-0 uppercase tracking-tight">
+              {initials}
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-sm font-medium text-sidebar-foreground leading-tight truncate">
+                {displayName}
+              </span>
+              <span className="text-[10px] text-sidebar-foreground/50 leading-tight truncate">
+                {userProfile.email}
+              </span>
+            </div>
           </div>
-          <div className="flex flex-col min-w-0">
-            <span className="text-sm font-medium text-sidebar-foreground leading-tight truncate">
-              {userProfile.first_name && userProfile.last_name
-                ? `${userProfile.first_name} ${userProfile.last_name}`
-                : userProfile.first_name || "Cloudflare User"}
-            </span>
-            <span className="text-[10px] text-sidebar-foreground/50 leading-tight truncate">
-              {userProfile.email}
-            </span>
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Theme Switcher */}
       {!collapsed && (
@@ -262,32 +279,17 @@ function TitleBar({ collapsed, onToggle, title, isRefreshing, onRefresh }: Title
         </span>
       </div>
 
-      {/* Global refresh — not draggable */}
+      {/* GitHub Link — not draggable */}
       <div data-tauri-drag-region="false" className="flex items-center pr-2">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              onClick={onRefresh}
-              disabled={isRefreshing}
-              className={cn(
-                "flex items-center justify-center w-8 h-8 rounded-md",
-                "text-muted-foreground hover:text-foreground hover:bg-muted/60",
-                "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                "disabled:opacity-40 disabled:cursor-not-allowed"
-              )}
-              aria-label="Refresh data"
-            >
-              <RefreshCw
-                size={14}
-                strokeWidth={1.75}
-                className={cn(isRefreshing && "animate-spin")}
-              />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" className="text-xs">
-            {isRefreshing ? "Refreshing…" : "Refresh Data"}
-          </TooltipContent>
-        </Tooltip>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 text-muted-foreground hover:text-foreground hover:bg-muted/60"
+          onClick={() => open('https://github.com/mubashardev/cf-studio')}
+        >
+          <Github className="mr-2" size={14} />
+          cf-studio
+        </Button>
       </div>
     </header>
   );
