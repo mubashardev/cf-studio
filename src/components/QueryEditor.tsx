@@ -9,7 +9,6 @@ import {
   Play, Loader2, AlertCircle, CheckCircle2,
   RotateCcw, Sparkles, ChevronLeft, ChevronRight,
 } from "lucide-react";
-import { invoke } from "@tauri-apps/api/core";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +18,7 @@ import {
   TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { type D1QueryResult } from "@/hooks/useCloudflare";
+import { type D1QueryResult, invokeCloudflare } from "@/hooks/useCloudflare";
 import { useAppStore } from "@/store/useAppStore";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -144,7 +143,7 @@ export function QueryEditor({ databaseId }: QueryEditorProps) {
     setStatus({ kind: "running" });
 
     try {
-      const results = await invoke<D1QueryResult[]>("execute_d1_query", {
+      const results = await invokeCloudflare<D1QueryResult[]>("execute_d1_query", {
         accountId: "",         // Rust auto-resolves via GET /accounts
         databaseId,
         sqlQuery: query,

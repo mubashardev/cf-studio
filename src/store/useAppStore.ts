@@ -47,6 +47,7 @@ interface AppState {
 
   // ── Preferences ──
   tableDensity: "compact" | "comfortable";
+  isRefreshingSession: boolean;
 
   /** Unix timestamp (ms) of the last successful databases fetch, or null. */
   lastFetched: number | null;
@@ -58,6 +59,7 @@ interface AppState {
   setUserProfile: (profile: UserProfile | null) => void;
   setCloudflareAccountId: (id: string | null) => void;
   setTableDensity: (density: "compact" | "comfortable") => void;
+  setIsRefreshingSession: (isRefreshing: boolean) => void;
 
   /** Overwrite the databases list and stamp the fetch time. */
   setDatabases: (databases: D1Database[]) => void;
@@ -83,6 +85,7 @@ export const useAppStore = create<AppState>()(
       databases: [],
       kvNamespaces: [],
       tableDensity: "comfortable",
+      isRefreshingSession: false,
       lastFetched: null,
       kvLastFetched: null,
 
@@ -90,6 +93,7 @@ export const useAppStore = create<AppState>()(
       setUserProfile: (profile) => set({ userProfile: profile }),
       setCloudflareAccountId: (id) => set({ cloudflareAccountId: id }),
       setTableDensity: (density) => set({ tableDensity: density }),
+      setIsRefreshingSession: (b) => set({ isRefreshingSession: b }),
       setDatabases: (databases) =>
         set({ databases, lastFetched: Date.now() }),
 

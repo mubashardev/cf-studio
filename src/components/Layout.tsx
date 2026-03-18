@@ -1,5 +1,4 @@
 import { useState, useCallback, useEffect } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { DatabasesView } from "@/components/DatabasesView";
 import {
   Database,
@@ -25,13 +24,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { SessionRefreshModal } from "@/components/SessionRefreshModal";
 import {
   useAppStore,
   selectSetDatabases,
   // We need UserProfile type from store
   type UserProfile,
 } from "@/store/useAppStore";
-import type { D1Database } from "@/hooks/useCloudflare";
+import { type D1Database, invokeCloudflare } from "@/hooks/useCloudflare";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface NavGroup {
@@ -65,7 +65,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "System",
     items: [
-      { id: "logs",     label: "Workers Logs",   icon: ScrollText, disabled: true, badge: "Pro" },
+      { id: "logs",     label: "Workers Logs",   icon: ScrollText, disabled: true, badge: "Soon" },
       { id: "settings", label: "Settings",       icon: Settings },
     ],
   },
@@ -318,7 +318,7 @@ export function Layout() {
   // Fetch User Profile on mount
   useEffect(() => {
     if (!userProfile) {
-      invoke<UserProfile>("fetch_user_profile")
+      invokeCloudflare<UserProfile>("fetch_user_profile")
         .then(profile => setUserProfile(profile))
         .catch(console.error);
     }
@@ -334,7 +334,7 @@ export function Layout() {
     try {
       // Fetch current active section. Extend this switch as new tabs are added.
       if (activeId === "d1") {
-        const databases = await invoke<D1Database[]>("fetch_d1_databases");
+        const databases = await invokeCloudflare<D1Database[]>("fetch_d1_databases");
         setDatabases(databases); // overwrites Zustand cache + updates timestamp
       }
       // KV: invoke("fetch_kv_namespaces") → setKvNamespaces(result)  [future]
@@ -348,6 +348,7 @@ export function Layout() {
 
   return (
     <TooltipProvider delayDuration={400}>
+      <SessionRefreshModal />
       <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
         {/* Sidebar */}
         <Sidebar

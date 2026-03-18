@@ -16,6 +16,46 @@ import {
   selectSetDatabases,
 } from "@/store/useAppStore";
 
+// ── API Interceptor ────────────────────────────────────────────────────────────
+
+/**
+ * Wraps Tauri `invoke` to automatically catch Cloudflare 401/403/9109 errors
+ * and refresh the Wrangler token in the background, then retry the request.
+ */
+export async function invokeCloudflare<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+  try {
+    return await invoke<T>(cmd, args);
+  } catch (err) {
+    const msg = String(err);
+    // Cloudflare D1 Token Error (9109), normal 401/403, or AuthError
+    if (msg.includes("9109") || msg.includes("401") || msg.includes("403") || msg.includes("Invalid access token")) {
+      const store = useAppStore.getState();
+
+      if (store.isRefreshingSession) {
+        // Another request is already refreshing. Wait until it finishes (up to 10s).
+        let waitTime = 0;
+        while (useAppStore.getState().isRefreshingSession && waitTime < 10000) {
+          await new Promise((r) => setTimeout(r, 200));
+          waitTime += 200;
+        }
+        return invoke<T>(cmd, args); // Retry once after the other one finishes
+      }
+
+      console.warn(`[CF Studio] Session expired (${cmd}). Negotiating fresh token...`);
+      store.setIsRefreshingSession(true);
+
+      try {
+        await invoke("refresh_wrangler_token");
+        // Retry original command
+        return await invoke<T>(cmd, args);
+      } finally {
+        store.setIsRefreshingSession(false);
+      }
+    }
+    throw err;
+  }
+}
+
 
 // ── Types mirroring Rust structs ───────────────────────────────────────────────
 
@@ -109,7 +149,7 @@ export function useD1Databases() {
     setState({ status: "loading" });
     setIsFromCache(false);
     try {
-      const databases = await invoke<D1Database[]>("fetch_d1_databases");
+      const databases = await invokeCloudflare<D1Database[]>("fetch_d1_databases");
       setDatabases(databases);           // write to persistent cache
       setState({ status: "success", data: databases });
     } catch (err) {
@@ -169,7 +209,7 @@ export function useD1Schema(databaseId: string) {
         accountId = resolvedAccountId;
       }
 
-      const queryResults = await invoke<D1QueryResult[]>("execute_d1_query", {
+      const queryResults = await invokeCloudflare<D1QueryResult[]>("execute_d1_query", {
         accountId,
         databaseId,
         sqlQuery: SCHEMA_SQL,
@@ -236,7 +276,7 @@ export function useD1TableData(
       const accountId = resolvedAccountId;
       const sql = `SELECT * FROM "${tableName}" LIMIT ${PAGE_LIMIT} OFFSET ${offset};`;
 
-      const queryResults = await invoke<D1QueryResult[]>("execute_d1_query", {
+      const queryResults = await invokeCloudflare<D1QueryResult[]>("execute_d1_query", {
         accountId,
         databaseId,
         sqlQuery: sql,
