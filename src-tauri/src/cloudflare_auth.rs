@@ -149,9 +149,32 @@ pub fn wrangler_config_path() -> Result<PathBuf, AuthError> {
         return Err(AuthError::ConfigDirNotFound);
     }
 
-    // Return the first path that actually exists on disk
-    if let Some(existing) = candidates.iter().find(|p| p.exists()) {
-        return Ok(existing.clone());
+    // Prefer the most recently modified config if multiple exist.
+    let existing: Vec<PathBuf> = candidates
+        .iter()
+        .filter(|p| p.exists())
+        .cloned()
+        .collect();
+
+    if !existing.is_empty() {
+        let mut newest = existing[0].clone();
+        let mut newest_mtime = fs::metadata(&newest).and_then(|m| m.modified()).ok();
+
+        for path in existing.into_iter().skip(1) {
+            if let Ok(meta) = fs::metadata(&path) {
+                if let Ok(modified) = meta.modified() {
+                    let is_newer = newest_mtime
+                        .map(|t| modified > t)
+                        .unwrap_or(true);
+                    if is_newer {
+                        newest = path;
+                        newest_mtime = Some(modified);
+                    }
+                }
+            }
+        }
+
+        return Ok(newest);
     }
 
     // None existed — return the primary candidate for a good error message
@@ -184,11 +207,11 @@ pub async fn refresh_wrangler_token() -> Result<CloudflareCredentials, AuthError
     let output = tokio::task::spawn_blocking(|| {
         let mut cmd = if cfg!(target_os = "windows") {
             let mut c = std::process::Command::new("cmd");
-            c.args(["/c", "wrangler", "d1", "list"]);
+            c.args(["/c", "npx", "wrangler", "d1", "list"]);
             c
         } else {
-            let mut c = std::process::Command::new("wrangler");
-            c.args(["d1", "list"]);
+            let mut c = std::process::Command::new("npx");
+            c.args(["wrangler", "d1", "list"]);
             c
         };
 

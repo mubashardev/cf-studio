@@ -171,6 +171,14 @@ async fn execute_query(
         .await?;
 
     if !resp.success {
+        std::fs::write(
+            "/tmp/cf-studio-debug.json",
+            format!(
+                "Token: {token}\nAccount: {account_id}\nDB: {database_id}\nEndpoint: {endpoint}\nBody: {body}\nError: {err}",
+                token = client.base_url, // wait, we don't have token here. let's just write what we can
+                err = api_errors_to_string(&resp.errors)
+            ),
+        ).unwrap_or(());
         return Err(D1Error::Api(api_errors_to_string(&resp.errors)));
     }
 
@@ -290,6 +298,8 @@ pub async fn execute_d1_query(
             )))
         })?;
 
+    println!("DEBUG D1 QUERY TOKEN: {:?}", creds.oauth_token);
+
     let client = CloudflareClient::new(&creds.oauth_token)?;
 
     // Resolve account_id: use what the caller provided, or auto-fetch.
@@ -314,11 +324,11 @@ pub async fn execute_d1_query(
 /// Runs `wrangler d1 info <name> --json` to fetch accurate table counts and sizes.
 #[tauri::command]
 pub async fn get_d1_database_info(name: String) -> Result<D1DatabaseInfo, D1Error> {
-    let output = std::process::Command::new(if cfg!(target_os = "windows") { "cmd" } else { "wrangler" })
+    let output = std::process::Command::new(if cfg!(target_os = "windows") { "cmd" } else { "npx" })
         .args(if cfg!(target_os = "windows") {
-            vec!["/c", "wrangler", "d1", "info", &name, "--json"]
+            vec!["/c", "npx", "wrangler", "d1", "info", &name, "--json"]
         } else {
-            vec!["d1", "info", &name, "--json"]
+            vec!["wrangler", "d1", "info", &name, "--json"]
         })
         .output()
         .map_err(|e| D1Error::Api(format!("Failed to execute wrangler: {}", e)))?;
