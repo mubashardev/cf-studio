@@ -40,6 +40,7 @@ pub fn run() {
             greet,
             get_cloudflare_token,
             cloudflare_auth::refresh_wrangler_token,
+            cloudflare_auth::fetch_cloudflare_accounts,
             d1::fetch_d1_databases,
             d1::execute_d1_query,
             user::fetch_user_profile,

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { open } from '@tauri-apps/plugin-shell';
 import { DatabasesView } from "@/components/DatabasesView";
 import {
@@ -23,11 +23,10 @@ import { Button } from "@/components/ui/button";
 import { SessionRefreshModal } from "@/components/SessionRefreshModal";
 import {
   useAppStore,
-  selectSetDatabases,
   // We need UserProfile type from store
   type UserProfile,
 } from "@/store/useAppStore";
-import { type D1Database, invokeCloudflare } from "@/hooks/useCloudflare";
+import { invokeCloudflare } from "@/hooks/useCloudflare";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface NavGroup {
@@ -303,9 +302,6 @@ function PageContent({ activeId }: { activeId: string }) {
 export function Layout() {
   const [collapsed, setCollapsed] = useState(false);
   const [activeId, setActiveId] = useState("d1");
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  const setDatabases = useAppStore(selectSetDatabases);
   const userProfile = useAppStore(s => s.userProfile);
   const setUserProfile = useAppStore(s => s.setUserProfile);
 
@@ -320,25 +316,6 @@ export function Layout() {
 
   const currentNav = NAV_GROUPS.flatMap(g => g.items).find((n) => n.id === activeId);
   const pageTitle = currentNav?.label ?? "CF Studio";
-
-  /** Bypasses the cache — always fetches fresh data from Cloudflare. */
-  const handleGlobalRefresh = useCallback(async () => {
-    if (isRefreshing) return;
-    setIsRefreshing(true);
-    try {
-      // Fetch current active section. Extend this switch as new tabs are added.
-      if (activeId === "d1") {
-        const databases = await invokeCloudflare<D1Database[]>("fetch_d1_databases");
-        setDatabases(databases); // overwrites Zustand cache + updates timestamp
-      }
-      // KV: invoke("fetch_kv_namespaces") → setKvNamespaces(result)  [future]
-    } catch {
-      // Errors surface in the individual view's own error state;
-      // a global toast can be added here later.
-    } finally {
-      setIsRefreshing(false);
-    }
-  }, [activeId, isRefreshing, setDatabases]);
 
   return (
     <>

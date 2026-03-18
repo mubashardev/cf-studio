@@ -8,6 +8,8 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
+use crate::cloudflare_client::{CfError, CfResponse, CloudflareClient};
+
 // ── Error type ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, thiserror::Error)]
@@ -55,6 +57,40 @@ pub struct CloudflareCredentials {
     pub oauth_token: String,
     /// Present only when Wrangler has cached the account ID.
     pub account_id: Option<String>,
+}
+
+// ── Cloudflare Accounts ────────────────────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct CloudflareAccount {
+    pub id: String,
+    pub name: String,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum AccountsError {
+    #[error("Authentication error: {0}")]
+    Auth(#[from] AuthError),
+
+    #[error("HTTP error: {0}")]
+    Http(#[from] reqwest::Error),
+
+    #[error("Cloudflare API error(s): {0}")]
+    Api(String),
+}
+
+impl Serialize for AccountsError {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        s.serialize_str(&self.to_string())
+    }
+}
+
+fn api_errors_to_string(errors: &[CfError]) -> String {
+    errors
+        .iter()
+        .map(|e| format!("[{}] {}", e.code, e.message))
+        .collect::<Vec<_>>()
+        .join("; ")
 }
 
 // ── Path resolution ────────────────────────────────────────────────────────────
@@ -172,6 +208,36 @@ pub async fn refresh_wrangler_token() -> Result<CloudflareCredentials, AuthError
     tokio::task::spawn_blocking(read_credentials)
         .await
         .map_err(|e| AuthError::ExecError(e.to_string()))?
+}
+
+// ── Accounts API ───────────────────────────────────────────────────────────────
+
+/// Fetches the list of Cloudflare accounts visible to the current OAuth token.
+#[tauri::command]
+pub async fn fetch_cloudflare_accounts() -> Result<Vec<CloudflareAccount>, AccountsError> {
+    let creds = tokio::task::spawn_blocking(read_credentials)
+        .await
+        .unwrap_or_else(|e| {
+            Err(AuthError::Io(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                e.to_string(),
+            )))
+        })?;
+
+    let client = CloudflareClient::new(&creds.oauth_token)?;
+
+    let resp = client
+        .get("accounts")
+        .send()
+        .await?
+        .json::<CfResponse<Vec<CloudflareAccount>>>()
+        .await?;
+
+    if !resp.success {
+        return Err(AccountsError::Api(api_errors_to_string(&resp.errors)));
+    }
+
+    Ok(resp.result.unwrap_or_default())
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────────
