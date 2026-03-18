@@ -9,6 +9,7 @@ import {
   ChevronRight, AlertCircle, BookOpen,
   ChevronLeft, ChevronRight as ChevronRightIcon,
   Sheet, Code2, Terminal, Network,
+  ChevronDown, ArrowUp, ArrowDown, Copy, Edit, Trash2
 } from "lucide-react";
 import { QueryEditor } from "@/components/QueryEditor";
 import { SchemaVisualizer } from "@/components/SchemaVisualizer";
@@ -26,13 +27,23 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { EditColumnDialog } from "@/components/EditColumnDialog";
 import { cn } from "@/lib/utils";
 import {
   useD1Schema,
   useD1TableData,
   type D1Database,
   type D1TableSchema,
+  type D1Column,
 } from "@/hooks/useCloudflare";
+
 
 // ── SQL formatter ─────────────────────────────────────────────────────────────
 
@@ -163,6 +174,7 @@ interface DataTabProps {
 
 function DataTab({ databaseId, table }: DataTabProps) {
   const [offset, setOffset] = useState(0);
+  const [editingColumn, setEditingColumn] = useState<D1Column | null>(null);
   const { state, refresh } = useD1TableData(databaseId, table.name, offset);
 
   const page = Math.floor(offset / 100) + 1;
@@ -233,14 +245,38 @@ function DataTab({ databaseId, table }: DataTabProps) {
                   {state.data.columns.map((col) => (
                     <TableHead
                       key={col.name}
-                      className={`text-xs font-medium text-foreground whitespace-nowrap bg-muted/40 border-r border-border last:border-r-0 ${paddingY} px-3`}
+                      className={`text-xs font-medium text-foreground whitespace-nowrap bg-muted/40 border-r border-border last:border-r-0 ${paddingY} px-0 group`}
                     >
-                      <div className="flex items-center gap-2">
-                        <span>{col.name}</span>
-                        <span className="text-muted-foreground/60 text-[10px] font-mono lowercase tracking-wide">
-                          {col.type}
-                        </span>
-                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger className="flex items-center justify-between gap-4 w-full h-full cursor-pointer hover:bg-muted/60 px-3 outline-none">
+                          <div className="flex items-center gap-2">
+                            <span>{col.name}</span>
+                            <span className="text-muted-foreground/60 text-[10px] font-mono lowercase tracking-wide">
+                              {col.type}
+                            </span>
+                          </div>
+                          <ChevronDown size={13} className="text-muted-foreground/30 group-hover:text-muted-foreground/80 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-44 font-mono text-[11px] shadow-lg border-border/60">
+                          <DropdownMenuItem className="gap-2 cursor-pointer text-muted-foreground focus:text-foreground">
+                            <ArrowUp size={13} strokeWidth={1.5} /> Sort Ascending
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="gap-2 cursor-pointer text-muted-foreground focus:text-foreground">
+                            <ArrowDown size={13} strokeWidth={1.5} /> Sort Descending
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem className="gap-2 cursor-pointer text-muted-foreground focus:text-foreground" onClick={() => navigator.clipboard.writeText(col.name)}>
+                            <Copy size={13} strokeWidth={1.5} /> Copy name
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="gap-2 cursor-pointer text-muted-foreground focus:text-foreground" onClick={() => setEditingColumn(col)}>
+                            <Edit size={13} strokeWidth={1.5} /> Edit column
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem className="gap-2 cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10">
+                            <Trash2 size={13} strokeWidth={1.5} /> Delete column
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableHead>
                   ))}
                 </TableRow>
@@ -284,6 +320,15 @@ function DataTab({ databaseId, table }: DataTabProps) {
         )}
 
       </div>
+
+      <EditColumnDialog
+        tableName={table.name}
+        column={editingColumn}
+        open={!!editingColumn}
+        onOpenChange={(open) => {
+          if (!open) setEditingColumn(null);
+        }}
+      />
 
       {/* Pagination footer */}
       {(hasPrev || hasNext || state.status === "success") && (
