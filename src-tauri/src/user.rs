@@ -16,6 +16,7 @@ pub struct UserProfile {
 struct UserResponse {
     success: bool,
     result: Option<UserProfile>,
+    #[allow(dead_code)]
     errors: Vec<serde_json::Value>,
 }
 

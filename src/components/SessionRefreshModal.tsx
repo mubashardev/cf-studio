@@ -28,7 +28,7 @@ export function SessionRefreshModal() {
         <div>
           <h2 className="text-xl font-bold tracking-tight text-foreground">Securing your connection...</h2>
           <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-            Your Cloudflare session expired. We're negotiating a fresh token in the background. This will just take a second.
+            Your Cloudflare session expired. We're negotiating a fresh token in the background. This will just take a few seconds.
           </p>
         </div>
       </Card>
