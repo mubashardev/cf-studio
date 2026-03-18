@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { open } from '@tauri-apps/plugin-shell';
+import { open } from "@tauri-apps/plugin-shell";
 import { DatabasesView } from "@/components/DatabasesView";
 import {
   Database,
@@ -46,29 +46,57 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Storage & Data",
     items: [
-      { id: "d1",       label: "Databases (D1)", icon: Database },
-      { id: "kv",       label: "KV Namespaces",  icon: KeyRound },
-      { id: "r2",       label: "R2 Buckets",     icon: Box,        disabled: true, badge: "Soon" },
+      { id: "d1", label: "Databases (D1)", icon: Database },
+      {
+        id: "kv",
+        label: "KV Namespaces",
+        icon: KeyRound,
+        disabled: true,
+        badge: "Soon",
+      },
+      {
+        id: "r2",
+        label: "R2 Buckets",
+        icon: Box,
+        disabled: true,
+        badge: "Soon",
+      },
     ],
   },
   {
     label: "Compute",
     items: [
-      { id: "vectorize", label: "Vectorize",    icon: Activity,   disabled: true, badge: "Soon" },
+      {
+        id: "vectorize",
+        label: "Vectorize",
+        icon: Activity,
+        disabled: true,
+        badge: "Soon",
+      },
     ],
   },
   {
     label: "System",
     items: [
-      { id: "logs",     label: "Workers Logs",   icon: ScrollText, disabled: true, badge: "Soon" },
-      { id: "settings", label: "Settings",       icon: Settings },
+      {
+        id: "logs",
+        label: "Workers Logs",
+        icon: ScrollText,
+        disabled: true,
+        badge: "Soon",
+      },
+      { id: "settings", label: "Settings", icon: Settings },
     ],
   },
 ];
 
-const THEME_OPTIONS: { value: Theme; icon: React.ElementType; label: string }[] = [
-  { value: "light",  icon: Sun,     label: "Light"  },
-  { value: "dark",   icon: Moon,    label: "Dark"   },
+const THEME_OPTIONS: {
+  value: Theme;
+  icon: React.ElementType;
+  label: string;
+}[] = [
+  { value: "light", icon: Sun, label: "Light" },
+  { value: "dark", icon: Moon, label: "Dark" },
   { value: "system", icon: Monitor, label: "System" },
 ];
 
@@ -81,7 +109,13 @@ interface SidebarProps {
   activeAccount: { id: string; name: string } | null;
 }
 
-function Sidebar({ collapsed, activeId, onNavigate, userProfile, activeAccount }: SidebarProps) {
+function Sidebar({
+  collapsed,
+  activeId,
+  onNavigate,
+  userProfile,
+  activeAccount,
+}: SidebarProps) {
   const { theme, setTheme } = useTheme();
 
   return (
@@ -89,14 +123,14 @@ function Sidebar({ collapsed, activeId, onNavigate, userProfile, activeAccount }
       className={cn(
         "flex flex-col h-full border-r border-sidebar-border bg-sidebar",
         "transition-[width] duration-200 ease-in-out overflow-hidden shrink-0",
-        collapsed ? "w-[52px]" : "w-[220px]"
+        collapsed ? "w-[52px]" : "w-[220px]",
       )}
     >
       {/* Logo */}
       <div
         className={cn(
           "flex items-center gap-2.5 px-3 h-11",
-          "border-b border-sidebar-border shrink-0"
+          "border-b border-sidebar-border shrink-0",
         )}
       >
         <CloudCog
@@ -135,7 +169,8 @@ function Sidebar({ collapsed, activeId, onNavigate, userProfile, activeAccount }
                     active
                       ? "bg-sidebar-accent text-sidebar-primary"
                       : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
-                    disabled && "opacity-50 cursor-not-allowed hover:bg-transparent hover:text-sidebar-foreground/70"
+                    disabled &&
+                      "opacity-50 cursor-not-allowed hover:bg-transparent hover:text-sidebar-foreground/70",
                   )}
                 >
                   <Icon
@@ -143,14 +178,21 @@ function Sidebar({ collapsed, activeId, onNavigate, userProfile, activeAccount }
                     strokeWidth={active ? 2 : 1.75}
                     className={cn(
                       "shrink-0 transition-colors",
-                      active ? "text-sidebar-primary" : "text-sidebar-foreground/50 group-hover:text-sidebar-foreground"
+                      active
+                        ? "text-sidebar-primary"
+                        : "text-sidebar-foreground/50 group-hover:text-sidebar-foreground",
                     )}
                   />
                   {!collapsed && (
-                    <span className="whitespace-nowrap flex-1 truncate">{label}</span>
+                    <span className="whitespace-nowrap flex-1 truncate">
+                      {label}
+                    </span>
                   )}
                   {!collapsed && badge && (
-                    <Badge variant="secondary" className="px-1.5 py-0 text-[9px] h-4 bg-sidebar-border/50 text-sidebar-foreground/50 shrink-0">
+                    <Badge
+                      variant="secondary"
+                      className="px-1.5 py-0 text-[9px] h-4 bg-sidebar-border/50 text-sidebar-foreground/50 shrink-0"
+                    >
                       {badge}
                     </Badge>
                   )}
@@ -195,7 +237,7 @@ function Sidebar({ collapsed, activeId, onNavigate, userProfile, activeAccount }
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   theme === value
                     ? "bg-sidebar-accent text-sidebar-primary"
-                    : "text-sidebar-foreground/40 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+                    : "text-sidebar-foreground/40 hover:text-sidebar-foreground hover:bg-sidebar-accent/50",
                 )}
               >
                 <Icon size={13} strokeWidth={1.75} />
@@ -223,7 +265,7 @@ function TitleBar({ collapsed, onToggle, title }: TitleBarProps) {
       className={cn(
         "flex items-center h-11 shrink-0 border-b border-border",
         "bg-background/90 backdrop-blur-sm",
-        "select-none"
+        "select-none",
       )}
     >
       {/* Collapse toggle — not draggable */}
@@ -233,14 +275,15 @@ function TitleBar({ collapsed, onToggle, title }: TitleBarProps) {
         className={cn(
           "flex items-center justify-center w-11 h-11 shrink-0",
           "text-muted-foreground hover:text-foreground transition-colors",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         )}
         aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
       >
-        {collapsed
-          ? <PanelLeftOpen  size={16} strokeWidth={1.75} />
-          : <PanelLeftClose size={16} strokeWidth={1.75} />
-        }
+        {collapsed ? (
+          <PanelLeftOpen size={16} strokeWidth={1.75} />
+        ) : (
+          <PanelLeftClose size={16} strokeWidth={1.75} />
+        )}
       </button>
 
       {/* Drag region + title */}
@@ -248,9 +291,7 @@ function TitleBar({ collapsed, onToggle, title }: TitleBarProps) {
         data-tauri-drag-region
         className="flex-1 flex items-center h-full px-1"
       >
-        <span className="text-sm font-medium text-foreground/70">
-          {title}
-        </span>
+        <span className="text-sm font-medium text-foreground/70">{title}</span>
       </div>
 
       {/* GitHub Link — not draggable */}
@@ -259,7 +300,7 @@ function TitleBar({ collapsed, onToggle, title }: TitleBarProps) {
           variant="ghost"
           size="sm"
           className="h-8 text-muted-foreground hover:text-foreground hover:bg-muted/60"
-          onClick={() => open('https://github.com/mubashardev/cf-studio')}
+          onClick={() => open("https://github.com/mubashardev/cf-studio")}
         >
           <Github className="mr-2" size={14} />
           cf-studio
@@ -285,9 +326,9 @@ function PageContent({ activeId }: { activeId: string }) {
 export function Layout() {
   const [collapsed, setCollapsed] = useState(false);
   const [activeId, setActiveId] = useState("d1");
-  const userProfile = useAppStore(s => s.userProfile);
-  const setUserProfile = useAppStore(s => s.setUserProfile);
-  const activeAccount = useAppStore(s => s.activeAccount);
+  const userProfile = useAppStore((s) => s.userProfile);
+  const setUserProfile = useAppStore((s) => s.setUserProfile);
+  const activeAccount = useAppStore((s) => s.activeAccount);
 
   useCloudflareAccounts();
 
@@ -295,12 +336,14 @@ export function Layout() {
   useEffect(() => {
     if (!userProfile) {
       invokeCloudflare<UserProfile>("fetch_user_profile")
-        .then(profile => setUserProfile(profile))
+        .then((profile) => setUserProfile(profile))
         .catch(console.error);
     }
   }, [userProfile, setUserProfile]);
 
-  const currentNav = NAV_GROUPS.flatMap(g => g.items).find((n) => n.id === activeId);
+  const currentNav = NAV_GROUPS.flatMap((g) => g.items).find(
+    (n) => n.id === activeId,
+  );
   const pageTitle = currentNav?.label ?? "CF Studio";
 
   return (
