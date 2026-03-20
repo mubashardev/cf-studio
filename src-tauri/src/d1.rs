@@ -202,7 +202,7 @@ async fn fetch_table_count(
     const COUNT_SQL: &str =
         "SELECT COUNT(*) as count FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';";
 
-    let results = execute_query(client, account_id, database_id, COUNT_SQL, None).await?;
+    let results = execute_query(client, account_id, database_id, COUNT_SQL.into(), None).await?;
     let count_value = results
         .get(0)
         .and_then(|r| r.results.get(0))

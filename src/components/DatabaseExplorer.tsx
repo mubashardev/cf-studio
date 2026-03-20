@@ -9,7 +9,7 @@ import {
   ChevronRight, AlertCircle, BookOpen,
   ChevronLeft, ChevronRight as ChevronRightIcon,
   Sheet, Code2, Terminal, Network,
-  ChevronDown, ArrowUp, ArrowDown, Copy, Edit, Trash2
+  ChevronDown, ArrowUp, ArrowDown, Copy, Edit, Trash2, Download, Link2, Key
 } from "lucide-react";
 import { QueryEditor } from "@/components/QueryEditor";
 import { SchemaVisualizer } from "@/components/SchemaVisualizer";
@@ -19,6 +19,7 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -35,6 +36,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { EditColumnDialog } from "@/components/EditColumnDialog";
+import { ExportWrapper } from "@/components/ExportWrapper";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import {
   useD1Schema,
@@ -176,7 +184,11 @@ interface DataTabProps {
 function DataTab({ databaseId, table, allTables }: DataTabProps) {
   const [offset, setOffset] = useState(0);
   const [editingColumn, setEditingColumn] = useState<D1Column | null>(null);
-  const { state, refresh } = useD1TableData(databaseId, table.name, offset);
+  const [isExportOpen, setIsExportOpen] = useState(false);
+  const [selectedRowIndices, setSelectedRowIndices] = useState<number[]>([]);
+  const [sortCol, setSortCol] = useState<string | undefined>();
+  const [sortAsc, setSortAsc] = useState<boolean | undefined>();
+  const { state, refresh } = useD1TableData(databaseId, table.name, offset, sortCol, sortAsc);
 
   const page = Math.floor(offset / 100) + 1;
   const hasNext = state.status === "success" && state.data.totalFetched === 100;
@@ -184,6 +196,26 @@ function DataTab({ databaseId, table, allTables }: DataTabProps) {
 
   const tableDensity = useAppStore(s => s.tableDensity);
   const paddingY = tableDensity === "compact" ? "py-1.5" : "py-2.5";
+
+  const allColumns =
+    state.status === "success" ? state.data.columns.map((c) => c.name) : [];
+
+  const existingPrimaryKeyColumn =
+    state.status === "success"
+      ? state.data.columns.find((c) => c.isPrimary)?.name || null
+      : null;
+
+  const rowsToExport =
+    state.status === "success"
+      ? selectedRowIndices.length === 0 ||
+        selectedRowIndices.length === state.data.rows.length
+        ? state.data.rows
+        : selectedRowIndices.map((i) => state.data.rows[i])
+      : [];
+
+  useEffect(() => {
+    setSelectedRowIndices([]);
+  }, [databaseId, table.name, offset, state.status]);
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -200,12 +232,15 @@ function DataTab({ databaseId, table, allTables }: DataTabProps) {
         </div>
         <div className="flex items-center gap-1">
           <Button
-            variant="ghost" size="icon"
-            className="h-6 w-6 text-muted-foreground hover:text-foreground"
-            onClick={refresh}
-            disabled={state.status === "loading" || state.status === "idle"}
+            variant="outline" size="sm"
+            className="h-6 text-xs gap-1.5 px-2"
+            onClick={() => setIsExportOpen(true)}
+            disabled={state.status !== "success" || state.data.rows.length === 0}
           >
-            <RefreshCw size={11} className={cn((state.status === "loading" || state.status === "idle") && "animate-spin")} />
+            <Download size={11} />
+            {selectedRowIndices.length === 0 || (state.status === "success" && selectedRowIndices.length === state.data.rows.length)
+              ? "Export All"
+              : `Export ${selectedRowIndices.length} Rows`}
           </Button>
         </div>
       </div>
@@ -236,9 +271,29 @@ function DataTab({ databaseId, table, allTables }: DataTabProps) {
         {state.status === "success" && state.data.rows.length > 0 && (
           <div className="h-full w-full overflow-auto">
             <div className="min-w-max">
+
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/30 hover:bg-muted/30 sticky top-0 z-10">
+                  <TableHead className={`w-10 text-center px-2 shrink-0 border-r border-border ${paddingY}`}>
+                    <Checkbox
+                      checked={
+                        state.data.rows.length > 0 && selectedRowIndices.length === state.data.rows.length
+                          ? true
+                          : selectedRowIndices.length > 0
+                            ? "indeterminate"
+                            : false
+                      }
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedRowIndices(state.data.rows.map((_, i) => i));
+                        } else {
+                          setSelectedRowIndices([]);
+                        }
+                      }}
+                      aria-label="Select all rows"
+                    />
+                  </TableHead>
                   {/* Row number gutter */}
                   <TableHead className={`w-10 text-center text-[10px] text-muted-foreground/40 font-mono px-2 shrink-0 border-r border-border ${paddingY}`}>
                     #
@@ -255,14 +310,51 @@ function DataTab({ databaseId, table, allTables }: DataTabProps) {
                             <span className="text-muted-foreground/60 text-[10px] font-mono lowercase tracking-wide">
                               {col.type}
                             </span>
+                            {col.isPrimary && (
+                              <TooltipProvider delayDuration={200}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Badge variant="secondary" className="h-4 px-1 py-0 gap-0 text-[10px] bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border-amber-500/20 shadow-none cursor-default">
+                                      <Key size={11} strokeWidth={2.5} />
+                                    </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="text-xs font-medium">
+                                    Primary Key
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+                            {col.foreignKeys && col.foreignKeys.length > 0 && (
+                              <TooltipProvider delayDuration={200}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Badge variant="secondary" className="h-4 px-1 gap-1 text-[10px] font-mono bg-muted/60 hover:bg-muted/80 text-muted-foreground cursor-help">
+                                      <Link2 size={10} />
+                                      {col.foreignKeys.length}
+                                    </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="text-xs font-medium font-mono">
+                                    <div className="flex flex-col gap-1.5 py-0.5">
+                                      {col.foreignKeys.map((fk, idx) => (
+                                        <div key={idx} className="flex items-center gap-2">
+                                          <span className="text-muted-foreground">{table.name}.{col.name}</span>
+                                          <span className="text-muted-foreground/50">{"->"}</span>
+                                          <span className="text-foreground">{fk.table}.{fk.column}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
                           </div>
                           <ChevronDown size={13} className="text-muted-foreground/30 group-hover:text-muted-foreground/80 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" className="w-44 font-mono text-[11px] shadow-lg border-border/60">
-                          <DropdownMenuItem className="gap-2 cursor-pointer text-muted-foreground focus:text-foreground">
+                          <DropdownMenuItem className="gap-2 cursor-pointer text-muted-foreground focus:text-foreground" onClick={() => { setSortCol(col.name); setSortAsc(true); setOffset(0); }}>
                             <ArrowUp size={13} strokeWidth={1.5} /> Sort Ascending
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2 cursor-pointer text-muted-foreground focus:text-foreground">
+                          <DropdownMenuItem className="gap-2 cursor-pointer text-muted-foreground focus:text-foreground" onClick={() => { setSortCol(col.name); setSortAsc(false); setOffset(0); }}>
                             <ArrowDown size={13} strokeWidth={1.5} /> Sort Descending
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
@@ -288,6 +380,20 @@ function DataTab({ databaseId, table, allTables }: DataTabProps) {
                     key={ri}
                     className="hover:bg-accent/30 transition-colors font-mono text-xs"
                   >
+                    <TableCell className={`text-center px-2 border-r border-border/50 ${paddingY}`}>
+                      <Checkbox
+                        checked={selectedRowIndices.includes(ri)}
+                        onCheckedChange={(checked) => {
+                          setSelectedRowIndices((prev) => {
+                            if (checked) {
+                              return prev.includes(ri) ? prev : [...prev, ri];
+                            }
+                            return prev.filter((i) => i !== ri);
+                          });
+                        }}
+                        aria-label={`Select row ${ri + 1}`}
+                      />
+                    </TableCell>
                     {/* Row number */}
                     <TableCell className={`text-center text-muted-foreground/30 px-2 select-none tabular-nums border-r border-border/50 ${paddingY}`}>
                       {state.data.offset + ri + 1}
@@ -322,14 +428,28 @@ function DataTab({ databaseId, table, allTables }: DataTabProps) {
 
       </div>
 
+      <ExportWrapper
+        isOpen={isExportOpen}
+        onClose={() => setIsExportOpen(false)}
+        dataToExport={rowsToExport as Record<string, unknown>[]}
+        allColumns={allColumns}
+      />
+
       <EditColumnDialog
+        databaseId={databaseId}
         tableName={table.name}
         column={editingColumn}
+        tableColumns={state.status === "success" ? state.data.columns : []}
         open={!!editingColumn}
         onOpenChange={(open) => {
           if (!open) setEditingColumn(null);
         }}
         allTables={allTables}
+        existingPrimaryKeyColumn={existingPrimaryKeyColumn}
+        onSuccess={() => {
+          setEditingColumn(null);
+          refresh();
+        }}
       />
 
       {/* Pagination footer */}

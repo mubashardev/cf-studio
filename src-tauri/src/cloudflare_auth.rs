@@ -46,6 +46,7 @@ impl Serialize for AuthError {
 #[derive(Debug, Deserialize)]
 struct WranglerConfig {
     oauth_token: Option<String>,
+    expiration_time: Option<String>,
     /// Wrangler sometimes stores the account_id it last used.
     account_id: Option<String>,
 }
@@ -149,32 +150,14 @@ pub fn wrangler_config_path() -> Result<PathBuf, AuthError> {
         return Err(AuthError::ConfigDirNotFound);
     }
 
-    // Prefer the most recently modified config if multiple exist.
-    let existing: Vec<PathBuf> = candidates
-        .iter()
-        .filter(|p| p.exists())
-        .cloned()
-        .collect();
-
-    if !existing.is_empty() {
-        let mut newest = existing[0].clone();
-        let mut newest_mtime = fs::metadata(&newest).and_then(|m| m.modified()).ok();
-
-        for path in existing.into_iter().skip(1) {
-            if let Ok(meta) = fs::metadata(&path) {
-                if let Ok(modified) = meta.modified() {
-                    let is_newer = newest_mtime
-                        .map(|t| modified > t)
-                        .unwrap_or(true);
-                    if is_newer {
-                        newest = path;
-                        newest_mtime = Some(modified);
-                    }
-                }
-            }
+    // Prefer the first existing path in priority order (OS-specific default
+    // first, then fallbacks). We avoid picking by mtime because multiple
+    // Wrangler locations can exist on macOS and the newest one is not always
+    // the active config used by Wrangler.
+    for path in &candidates {
+        if path.exists() {
+            return Ok(path.clone());
         }
-
-        return Ok(newest);
     }
 
     // None existed — return the primary candidate for a good error message
@@ -187,14 +170,89 @@ pub fn wrangler_config_path() -> Result<PathBuf, AuthError> {
 
 /// Reads and parses the Wrangler config, returning the extracted credentials.
 pub fn read_credentials() -> Result<CloudflareCredentials, AuthError> {
-    let path = wrangler_config_path()?;
-    let raw = fs::read_to_string(&path)?;
-    let config: WranglerConfig = toml::from_str(&raw)?;
-    let oauth_token = config.oauth_token.ok_or(AuthError::NoToken)?;
-    Ok(CloudflareCredentials {
-        oauth_token,
-        account_id: config.account_id,
-    })
+    let candidates = wrangler_candidate_paths();
+    if candidates.is_empty() {
+        return Err(AuthError::ConfigDirNotFound);
+    }
+
+    let mut best: Option<(WranglerConfig, PathBuf)> = None;
+    let mut saw_existing = false;
+    let mut saw_no_token = false;
+    let mut first_error: Option<AuthError> = None;
+
+    for path in &candidates {
+        if !path.exists() {
+            continue;
+        }
+        saw_existing = true;
+
+        let raw = match fs::read_to_string(path) {
+            Ok(raw) => raw,
+            Err(e) => {
+                if first_error.is_none() {
+                    first_error = Some(AuthError::Io(e));
+                }
+                continue;
+            }
+        };
+
+        let config: WranglerConfig = match toml::from_str(&raw) {
+            Ok(config) => config,
+            Err(e) => {
+                if first_error.is_none() {
+                    first_error = Some(AuthError::TomlParse(e));
+                }
+                continue;
+            }
+        };
+
+        if config.oauth_token.is_none() {
+            saw_no_token = true;
+            continue;
+        }
+
+        match &best {
+            None => best = Some((config, path.clone())),
+            Some((current, _)) => {
+                let next_exp = config.expiration_time.as_deref();
+                let current_exp = current.expiration_time.as_deref();
+
+                let should_replace = match (current_exp, next_exp) {
+                    (Some(cur), Some(next)) => next > cur,
+                    (None, Some(_)) => true,
+                    _ => false,
+                };
+
+                if should_replace {
+                    best = Some((config, path.clone()));
+                }
+            }
+        }
+    }
+
+    if let Some((config, _path)) = best {
+        let oauth_token = config.oauth_token.ok_or(AuthError::NoToken)?;
+        return Ok(CloudflareCredentials {
+            oauth_token,
+            account_id: config.account_id,
+        });
+    }
+
+    if let Some(err) = first_error {
+        return Err(err);
+    }
+
+    if saw_no_token {
+        return Err(AuthError::NoToken);
+    }
+
+    if saw_existing {
+        return Err(AuthError::NoToken);
+    }
+
+    Err(AuthError::ConfigFileNotFound(
+        candidates[0].to_string_lossy().into_owned(),
+    ))
 }
 
 // ── Background Token Refresh ───────────────────────────────────────────────────

@@ -293,12 +293,20 @@ export function setResolvedAccountId(id: string) {
 
 const PAGE_LIMIT = 100;
 
+export interface D1ForeignKey {
+  table: string;
+  column: string;
+  updateAction: string;
+  deleteAction: string;
+}
+
 export interface D1Column {
   name: string;
   type: string;
   isPrimary?: boolean;
   isNullable?: boolean;
   defaultValue?: string | null;
+  foreignKeys?: D1ForeignKey[];
 }
 
 export interface D1TableData {
@@ -317,9 +325,11 @@ export interface D1TableData {
 export function useD1TableData(
   databaseId: string,
   tableName: string,
-  offset: number = 0
+  offset: number = 0,
+  sortCol?: string,
+  sortAsc?: boolean
 ) {
-  const cacheKey = `data_${databaseId}_${tableName}_${offset}`;
+  const cacheKey = `data_${databaseId}_${tableName}_${offset}_${sortCol}_${sortAsc}`;
   const [state, setState] = useState<AsyncState<D1TableData>>(() => {
     const cached = useAppStore.getState().queryCache[cacheKey];
     if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
@@ -342,7 +352,11 @@ export function useD1TableData(
     setState({ status: "loading" });
     try {
       const accountId = resolvedAccountId;
-      const sql = `PRAGMA table_info("${tableName}"); SELECT * FROM "${tableName}" LIMIT ${PAGE_LIMIT} OFFSET ${offset};`;
+      let orderClause = "";
+      if (sortCol) {
+        orderClause = ` ORDER BY "${sortCol}" ${sortAsc ? 'ASC' : 'DESC'}`;
+      }
+      const sql = `PRAGMA table_info("${tableName}"); PRAGMA foreign_key_list("${tableName}"); SELECT * FROM "${tableName}"${orderClause} LIMIT ${PAGE_LIMIT} OFFSET ${offset};`;
 
       const queryResults = await invokeCloudflare<D1QueryResult[]>("execute_d1_query", {
         accountId,
@@ -352,14 +366,28 @@ export function useD1TableData(
       });
 
       const pragmaRows = queryResults[0]?.success ? queryResults[0].results : [];
-      const dataRows = queryResults.length > 1 ? queryResults[1].results : (queryResults[0]?.results ?? []);
+      const fkRows = queryResults[1]?.success ? queryResults[1].results : [];
+      const dataRows = queryResults.length > 2 ? queryResults[2].results : (queryResults[0]?.results ?? []);
+
+      const fksByColumn = fkRows.reduce((acc, row) => {
+        const colName = String(row.from);
+        if (!acc[colName]) acc[colName] = [];
+        acc[colName].push({
+          table: String(row.table),
+          column: String(row.to),
+          updateAction: String(row.on_update),
+          deleteAction: String(row.on_delete),
+        });
+        return acc;
+      }, {} as Record<string, D1ForeignKey[]>);
 
       const columns: D1Column[] = pragmaRows.map(r => ({
         name: String(r.name),
         type: String(r.type || "unknown").toLowerCase(),
         isPrimary: r.pk === 1,
         isNullable: r.notnull === 0,
-        defaultValue: r.dflt_value != null ? String(r.dflt_value) : null
+        defaultValue: r.dflt_value != null ? String(r.dflt_value) : null,
+        foreignKeys: fksByColumn[String(r.name)] || []
       }));
 
       // Fallback if PRAGMA fails
@@ -377,7 +405,7 @@ export function useD1TableData(
     } catch (err) {
       setState({ status: "error", message: String(err) });
     }
-  }, [databaseId, tableName, offset, cacheKey]);
+  }, [databaseId, tableName, offset, sortCol, sortAsc, cacheKey]);
 
   useEffect(() => {
     fetch();
