@@ -75,4 +75,4 @@ Contributions are always welcome. If you want to add a new feature or fix a bug,
 
 -----
 
-Built by [Mubashar Dev](https://mubashar.dev).
+Built by [CF Studio](https://cfstudio.dev).

@@ -1,7 +1,7 @@
 /* ─────────────────────────────────────────────────────────
    CF Studio — Global Styles
    Typography: Google Sans Flex (sans) + Google Sans Code (mono)
-   Theme: Linear / Vercel-inspired, OKLCH-based
+   Theme: Cloudflare-inspired, OKLCH-based
 ───────────────────────────────────────────────────────── */
 
 /* Tailwind CSS v4 */
@@ -37,8 +37,8 @@
   --popover:             oklch(1 0 0);
   --popover-foreground:  oklch(0.13 0.012 240);
 
-  /* Brand (violet-blue à la Linear) */
-  --primary:             oklch(0.56 0.22 264);
+  /* Brand (Cloudflare orange) */
+  --primary:             oklch(0.65 0.19 55);
   --primary-foreground:  oklch(1 0 0);
 
   /* Secondary / Muted */
@@ -48,8 +48,8 @@
   --muted-foreground:    oklch(0.52 0.012 240);
 
   /* Accent */
-  --accent:              oklch(0.94 0.01 264);
-  --accent-foreground:   oklch(0.24 0.015 264);
+  --accent:              oklch(0.94 0.03 55);
+  --accent-foreground:   oklch(0.24 0.015 55);
 
   /* Destructive */
   --destructive:         oklch(0.62 0.22 25);
@@ -58,10 +58,10 @@
   /* Borders / Inputs */
   --border:              oklch(0.9 0.005 240);
   --input:               oklch(0.9 0.005 240);
-  --ring:                oklch(0.56 0.22 264 / 0.4);
+  --ring:                oklch(0.65 0.19 55 / 0.4);
 
   /* Charts */
-  --chart-1: oklch(0.56 0.22 264);
+  --chart-1: oklch(0.65 0.19 55);
   --chart-2: oklch(0.62 0.18 182);
   --chart-3: oklch(0.72 0.17 84);
   --chart-4: oklch(0.62 0.22 25);
@@ -70,15 +70,15 @@
   /* Sidebar */
   --sidebar:                   oklch(0.97 0.003 240);
   --sidebar-foreground:        oklch(0.24 0.015 240);
-  --sidebar-primary:           oklch(0.56 0.22 264);
+  --sidebar-primary:           oklch(0.65 0.19 55);
   --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent:            oklch(0.93 0.01 264);
-  --sidebar-accent-foreground: oklch(0.24 0.015 264);
+  --sidebar-accent:            oklch(0.94 0.03 55);
+  --sidebar-accent-foreground: oklch(0.24 0.015 55);
   --sidebar-border:            oklch(0.9 0.005 240);
-  --sidebar-ring:              oklch(0.56 0.22 264 / 0.4);
+  --sidebar-ring:              oklch(0.65 0.19 55 / 0.4);
 }
 
-/* ── Dark theme (Linear / Vercel-style) ─────────────────── */
+/* ── Dark theme (Cloudflare-style) ──────────────────────── */
 .dark {
   /* Core */
   --background:          oklch(0.10 0.01 250);
@@ -91,7 +91,7 @@
   --popover-foreground:  oklch(0.96 0.004 240);
 
   /* Brand */
-  --primary:             oklch(0.68 0.2 264);
+  --primary:             oklch(0.75 0.18 55);
   --primary-foreground:  oklch(0.10 0.01 250);
 
   /* Secondary / Muted */
@@ -101,8 +101,8 @@
   --muted-foreground:    oklch(0.54 0.012 240);
 
   /* Accent */
-  --accent:              oklch(0.22 0.02 264);
-  --accent-foreground:   oklch(0.92 0.008 264);
+  --accent:              oklch(0.22 0.03 55);
+  --accent-foreground:   oklch(0.92 0.008 55);
 
   /* Destructive */
   --destructive:         oklch(0.72 0.2 25);
@@ -111,10 +111,10 @@
   /* Borders / Inputs */
   --border:              oklch(1 0 0 / 8%);
   --input:               oklch(1 0 0 / 10%);
-  --ring:                oklch(0.68 0.2 264 / 0.45);
+  --ring:                oklch(0.75 0.18 55 / 0.45);
 
   /* Charts */
-  --chart-1: oklch(0.68 0.2 264);
+  --chart-1: oklch(0.75 0.18 55);
   --chart-2: oklch(0.72 0.17 182);
   --chart-3: oklch(0.75 0.17 84);
   --chart-4: oklch(0.72 0.2 25);
@@ -123,12 +123,12 @@
   /* Sidebar — slightly elevated surface */
   --sidebar:                   oklch(0.13 0.012 250);
   --sidebar-foreground:        oklch(0.82 0.01 240);
-  --sidebar-primary:           oklch(0.68 0.2 264);
+  --sidebar-primary:           oklch(0.75 0.18 55);
   --sidebar-primary-foreground: oklch(0.10 0.01 250);
-  --sidebar-accent:            oklch(0.22 0.02 264);
-  --sidebar-accent-foreground: oklch(0.92 0.008 264);
+  --sidebar-accent:            oklch(0.22 0.03 55);
+  --sidebar-accent-foreground: oklch(0.92 0.008 55);
   --sidebar-border:            oklch(1 0 0 / 7%);
-  --sidebar-ring:              oklch(0.68 0.2 264 / 0.45);
+  --sidebar-ring:              oklch(0.75 0.18 55 / 0.45);
 }
 
 /* ── Tailwind v4 theme mapping ──────────────────────────── */

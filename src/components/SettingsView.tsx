@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-shell";
 import { useAppStore } from "@/store/useAppStore";
 import { useTheme } from "@/components/ThemeProvider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Monitor, Moon, RefreshCw, Sun, DatabaseZap } from "lucide-react";
+import { Monitor, Moon, RefreshCw, Sun, ExternalLink } from "lucide-react";
+import appVersion from "../../package.json";
 
 export function SettingsView() {
   const { theme, setTheme } = useTheme();
@@ -144,16 +146,32 @@ export function SettingsView() {
           <TabsContent value="about" className="m-0 space-y-6 animate-in fade-in-50 duration-200">
             <Card>
               <CardContent className="p-12 flex flex-col items-center justify-center text-center space-y-4">
-                <div className="w-16 h-16 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-2">
-                  <DatabaseZap size={32} />
-                </div>
+                <img
+                  src={theme === "dark" ? "/app-icon-dark.png" : "/app-icon.png"}
+                  alt="CF Studio"
+                  className="w-20 h-20 rounded-2xl shadow-lg"
+                  draggable={false}
+                />
                 <div>
                   <h2 className="text-xl font-bold tracking-tight">CF Studio</h2>
-                  <p className="text-sm text-muted-foreground mt-1 text-mono">v1.0.0-beta</p>
+                  <p className="text-sm text-muted-foreground mt-1 font-mono">v{appVersion.version}</p>
                 </div>
-                <div className="pt-4 flex gap-3">
-                  <Button onClick={() => window.alert("You are up to date!")}>Check for Updates</Button>
+                <p className="text-sm text-muted-foreground max-w-sm">
+                  A native desktop client for managing Cloudflare D1 databases with a visual interface.
+                </p>
+                <div className="pt-2 flex gap-3">
+                  <Button variant="outline" size="sm" onClick={() => open("https://github.com/mubashardev/cf-studio")}>
+                    <ExternalLink className="mr-2 h-3.5 w-3.5" />
+                    GitHub
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => open("https://cfstudio.dev")}>
+                    <ExternalLink className="mr-2 h-3.5 w-3.5" />
+                    Website
+                  </Button>
                 </div>
+                <p className="text-xs text-muted-foreground pt-4">
+                  © {new Date().getFullYear()} CF Studio. All rights reserved.
+                </p>
               </CardContent>
             </Card>
           </TabsContent>
