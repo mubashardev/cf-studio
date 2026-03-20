@@ -1,0 +1,3 @@
+[submodule "src/pro_modules"]
+	path = src/pro_modules
+	url = https://github.com/mubashardev/cf-studio-pro.git
