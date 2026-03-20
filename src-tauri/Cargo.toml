@@ -2,7 +2,7 @@
 name = "cf-studio"
 version = "1.0.2"
 description = "A blazing-fast native desktop client for Cloudflare D1 and KV"
-authors = ["Mubashar Hussain <hello@mubashar.dev>"]
+authors = ["CF Studio"]
 edition = "2021"
 rust-version = "1.77.2"
 

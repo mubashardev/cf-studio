@@ -47,18 +47,18 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Storage & Data",
     items: [
+      {
+        id: "r2",
+        label: "R2 Buckets",
+        icon: Box,
+        disabled: true,
+        badge: "Soon",
+      },
       { id: "d1", label: "Databases (D1)", icon: Database },
       {
         id: "kv",
         label: "KV Namespaces",
         icon: KeyRound,
-        disabled: true,
-        badge: "Soon",
-      },
-      {
-        id: "r2",
-        label: "R2 Buckets",
-        icon: Box,
         disabled: true,
         badge: "Soon",
       },

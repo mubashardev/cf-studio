@@ -2,6 +2,7 @@
   "name": "cf-studio",
   "private": true,
   "version": "1.0.2",
+  "author": "CF Studio",
   "type": "module",
   "scripts": {
     "dev": "vite",
