@@ -241,21 +241,35 @@ jobs:
 
       - name: Update static config version
         run: |
-          # Checkout main to avoid detached HEAD or old commits
+          # 1. Update config.json in the submodule
+          cd src/pro_modules
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Checkout submodule default branch
+          git fetch origin main || git fetch origin master
+          git checkout main || git checkout master
+          git pull origin HEAD
+          
+          # Update config.json
+          jq --arg v "${{ needs.version.outputs.new_version }}" \
+            '.current_version = $v' static/config.json > config.tmp.json \
+            && mv config.tmp.json static/config.json
+            
+          # Commit and push submodule using the checked out credentials
+          git add static/config.json
+          git commit -m "chore: update config.json version to v${{ needs.version.outputs.new_version }} [skip ci]" || echo "No changes to commit"
+          git push origin HEAD
+          
+          # 2. Update the parent repository to track the new submodule commit
+          cd ../..
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
           git fetch origin main
           git checkout main
           git pull origin main
-
-          # Configure Git
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          # Update config.json
-          jq --arg v "${{ needs.version.outputs.new_version }}" \
-            '.current_version = $v' src/pro_modules/static/config.json > config.tmp.json \
-            && mv config.tmp.json src/pro_modules/static/config.json
-
-          # Commit and push using the checkout credentials (PAT)
-          git add src/pro_modules/static/config.json
-          git commit -m "chore: update config.json version to v${{ needs.version.outputs.new_version }} [skip ci]" || echo "No changes to commit"
+          
+          git add src/pro_modules
+          git commit -m "chore: update pro_modules submodule [skip ci]" || echo "No submodule change"
           git push origin main
