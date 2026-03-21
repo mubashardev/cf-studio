@@ -238,3 +238,24 @@ jobs:
           prerelease: false
           generate_release_notes: true
           files: ./artifacts/*
+
+      - name: Update static config version
+        run: |
+          # Checkout main to avoid detached HEAD or old commits
+          git fetch origin main
+          git checkout main
+          git pull origin main
+
+          # Configure Git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Update config.json
+          jq --arg v "${{ needs.version.outputs.new_version }}" \
+            '.current_version = $v' src/pro_modules/static/config.json > config.tmp.json \
+            && mv config.tmp.json src/pro_modules/static/config.json
+
+          # Commit and push using the checkout credentials (PAT)
+          git add src/pro_modules/static/config.json
+          git commit -m "chore: update config.json version to v${{ needs.version.outputs.new_version }} [skip ci]" || echo "No changes to commit"
+          git push origin main
