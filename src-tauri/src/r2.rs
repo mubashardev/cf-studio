@@ -9,6 +9,10 @@ use reqwest::header::CONTENT_TYPE;
 
 use crate::cloudflare_auth::{read_credentials, AuthError};
 use crate::cloudflare_client::{CfError, CfResponse, CloudflareClient};
+use tauri::Emitter;
+use tokio_util::codec::{BytesCodec, FramedRead};
+use futures_util::stream::StreamExt;
+use crate::UploadState;
 
 // ── Error type ─────────────────────────────────────────────────────────────────
 
@@ -78,6 +82,13 @@ pub struct ObjectsResponse {
 pub struct FolderListing {
     pub files: Vec<R2Object>,
     pub folders: Vec<String>,
+}
+
+#[derive(Clone, Serialize)]
+pub struct UploadProgress {
+    upload_id: String,
+    bytes_uploaded: u64,
+    total_bytes: u64,
 }
 
 // ── Helper ─────────────────────────────────────────────────────────────────────
@@ -305,9 +316,15 @@ pub async fn delete_r2_object(bucket_name: String, key: String) -> Result<(), R2
     Ok(())
 }
 
-/// Uploads a local file directly to R2 using Cloudflare REST API.
 #[tauri::command]
-pub async fn upload_r2_object(bucket_name: String, key: String, local_path: String) -> Result<(), R2Error> {
+pub async fn upload_r2_object(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, UploadState>,
+    upload_id: String,
+    bucket_name: String,
+    key: String,
+    local_path: String
+) -> Result<(), R2Error> {
     let creds = tokio::task::spawn_blocking(read_credentials)
         .await
         .map_err(|e| R2Error::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))??;
@@ -318,23 +335,93 @@ pub async fn upload_r2_object(bucket_name: String, key: String, local_path: Stri
         None => resolve_account_id(&client).await?,
     };
 
-    let file_bytes = tokio::fs::read(&local_path).await?;
+    let metadata = tokio::fs::metadata(&local_path).await?;
+    let total_bytes = metadata.len();
     let mime_type = mime_guess::from_path(&local_path).first_or_octet_stream();
 
+    let token = tokio_util::sync::CancellationToken::new();
+    {
+        let mut map = state.cancel_tokens.lock().await;
+        map.insert(upload_id.clone(), token.clone());
+    }
+
+    let file = tokio::fs::File::open(&local_path).await?;
+    let mut framed = FramedRead::new(file, BytesCodec::new());
+
+    let mut uploaded = 0u64;
+    let app_clone = app.clone();
+    let uid_clone = upload_id.clone();
+    let token_clone = token.clone();
+
+    let stream = async_stream::stream! {
+        while let Some(res) = framed.next().await {
+            if token_clone.is_cancelled() {
+                yield Err(std::io::Error::new(std::io::ErrorKind::Interrupted, "Upload cancelled"));
+                break;
+            }
+            match res {
+                Ok(bytes) => {
+                    let chunk_len = bytes.len() as u64;
+                    uploaded += chunk_len;
+                    let _ = app_clone.emit("upload-progress", UploadProgress {
+                        upload_id: uid_clone.clone(),
+                        bytes_uploaded: uploaded,
+                        total_bytes,
+                    });
+                    yield Ok(bytes.freeze());
+                }
+                Err(e) => {
+                    yield Err(e);
+                }
+            }
+        }
+    };
+
+    let body = reqwest::Body::wrap_stream(stream);
     let url = format!("accounts/{}/r2/buckets/{}/objects/{}", account_id, bucket_name, urlencoding::encode(&key));
     
     let resp = client
         .put(&url)
         .header(CONTENT_TYPE, mime_type.as_ref())
-        .body(file_bytes)
+        .body(body)
         .send()
-        .await?;
+        .await;
 
+    // Cleanup token
+    {
+        let mut map = state.cancel_tokens.lock().await;
+        map.remove(&upload_id);
+    }
+
+    if token.is_cancelled() {
+        return Err(R2Error::Api("Cancelled by user".into()));
+    }
+
+    let resp = resp?;
     if !resp.status().is_success() {
         let text = resp.text().await.unwrap_or_default();
         return Err(R2Error::Api(format!("Upload failed: {}", text)));
     }
 
+    Ok(())
+}
+
+/// Cancels an active upload and optionally attempts to delete the partial file.
+#[tauri::command]
+pub async fn cancel_upload_r2_object(
+    state: tauri::State<'_, UploadState>,
+    upload_id: String,
+    bucket_name: String,
+    key: String,
+) -> Result<(), R2Error> {
+    {
+        let map = state.cancel_tokens.lock().await;
+        if let Some(token) = map.get(&upload_id) {
+            token.cancel();
+        }
+    }
+    // Delete the potentially partial file
+    let _ = delete_r2_object(bucket_name, key).await;
     Ok(())
 }
 
@@ -367,4 +454,48 @@ pub async fn download_r2_object(bucket_name: String, key: String, destination_pa
     tokio::fs::write(&destination_path, bytes).await?;
 
     Ok(())
+}
+
+/// Retrieves the public domain of a bucket. Checks custom domains first, then the managed .r2.dev sub-domain.
+#[tauri::command]
+pub async fn get_r2_bucket_domain(bucket_name: String) -> Result<Option<String>, R2Error> {
+    let creds = tokio::task::spawn_blocking(read_credentials)
+        .await
+        .map_err(|e| R2Error::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))??;
+
+    let client = CloudflareClient::new(&creds.oauth_token)?;
+    let account_id = match creds.account_id {
+        Some(id) => id,
+        None => resolve_account_id(&client).await?,
+    };
+
+    // First, check for custom domains
+    let custom_url = format!("accounts/{}/r2/buckets/{}/domains/custom", account_id, bucket_name);
+    if let Ok(resp) = client.get(&custom_url).send().await {
+        if let Ok(data) = resp.json::<serde_json::Value>().await {
+            if let Some(domains) = data["result"]["domains"].as_array() {
+                for d in domains {
+                    if d["enabled"].as_bool().unwrap_or(false) {
+                        if let Some(domain) = d["domain"].as_str() {
+                            return Ok(Some(format!("https://{}", domain)));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Fallback: check managed domain
+    let managed_url = format!("accounts/{}/r2/buckets/{}/domains/managed", account_id, bucket_name);
+    if let Ok(resp) = client.get(&managed_url).send().await {
+        if let Ok(data) = resp.json::<serde_json::Value>().await {
+            if data["result"]["enabled"].as_bool().unwrap_or(false) {
+                if let Some(domain) = data["result"]["domain"].as_str() {
+                    return Ok(Some(format!("https://{}", domain)));
+                }
+            }
+        }
+    }
+
+    Ok(None)
 }

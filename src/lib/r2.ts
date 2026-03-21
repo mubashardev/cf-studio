@@ -56,9 +56,21 @@ export async function listR2Objects(
 export async function uploadR2Object(
   bucketName: string,
   key: string,
-  localPath: string
+  localPath: string,
+  uploadId: string
 ): Promise<void> {
-  return invokeCloudflare<void>("upload_r2_object", { bucketName, key, localPath });
+  return invokeCloudflare<void>("upload_r2_object", { bucketName, key, localPath, uploadId });
+}
+
+/**
+ * Cancel an ongoing upload process.
+ */
+export async function cancelUploadR2Object(
+  uploadId: string,
+  bucketName: string,
+  key: string
+): Promise<void> {
+  return invokeCloudflare<void>("cancel_upload_r2_object", { uploadId, bucketName, key });
 }
 
 /**
@@ -87,4 +99,12 @@ export async function downloadR2Object(
     key,
     destinationPath,
   });
+}
+
+/**
+ * Retrieves the public domain of an R2 bucket.
+ * Returns the custom domain or managed domain formatted dynamically, or null if private.
+ */
+export async function getR2BucketDomain(bucketName: string): Promise<string | null> {
+  return invokeCloudflare<string | null>("get_r2_bucket_domain", { bucketName });
 }

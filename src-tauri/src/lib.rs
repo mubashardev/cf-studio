@@ -7,6 +7,15 @@ pub mod r2;
 pub mod user;
 
 use cloudflare_auth::{read_credentials, AuthError, CloudflareCredentials};
+use std::sync::Arc;
+use tokio::sync::Mutex;
+use std::collections::HashMap;
+use tokio_util::sync::CancellationToken;
+
+#[derive(Default)]
+pub struct UploadState {
+    pub cancel_tokens: Arc<Mutex<HashMap<String, CancellationToken>>>,
+}
 
 // ── Tauri Commands ─────────────────────────────────────────────────────────────
 
@@ -39,6 +48,7 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
+        .manage(UploadState::default())
         .invoke_handler(tauri::generate_handler![
             greet,
             get_cloudflare_token,
@@ -51,7 +61,9 @@ pub fn run() {
             r2::list_r2_objects,
             r2::delete_r2_object,
             r2::upload_r2_object,
+            r2::cancel_upload_r2_object,
             r2::download_r2_object,
+            r2::get_r2_bucket_domain,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
