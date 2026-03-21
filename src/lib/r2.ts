@@ -26,7 +26,24 @@ export interface FolderListing {
   folders: string[];
 }
 
+export interface BucketDomainsInfo {
+  managed: any;
+  custom: any[];
+}
+
 // ── R2 Operations ──────────────────────────────────────────────────────────────
+
+export async function createR2Bucket(bucketName: string): Promise<void> {
+  return invokeCloudflare<void>("create_r2_bucket", { bucketName });
+}
+
+export async function deleteR2Bucket(bucketName: string): Promise<void> {
+  return invokeCloudflare<void>("delete_r2_bucket", { bucketName });
+}
+
+export async function emptyR2Bucket(bucketName: string): Promise<void> {
+  return invokeCloudflare<void>("empty_r2_bucket", { bucketName });
+}
 
 /**
  * Fetch all buckets for the authenticated Cloudflare account.
@@ -107,4 +124,20 @@ export async function downloadR2Object(
  */
 export async function getR2BucketDomain(bucketName: string): Promise<string | null> {
   return invokeCloudflare<string | null>("get_r2_bucket_domain", { bucketName });
+}
+
+export async function getR2BucketDomainsList(bucketName: string): Promise<BucketDomainsInfo> {
+  return invokeCloudflare<BucketDomainsInfo>("get_r2_bucket_domains_list", { bucketName });
+}
+
+export async function updateR2BucketManagedDomain(bucketName: string, enabled: boolean): Promise<void> {
+  return invokeCloudflare<void>("update_r2_bucket_managed_domain", { bucketName, enabled });
+}
+
+export async function addR2BucketCustomDomain(bucketName: string, domain: string, zoneId: string): Promise<void> {
+  return invokeCloudflare<void>("add_r2_bucket_custom_domain", { bucketName, domain, zoneId });
+}
+
+export async function removeR2BucketCustomDomain(bucketName: string, domain: string): Promise<void> {
+  return invokeCloudflare<void>("remove_r2_bucket_custom_domain", { bucketName, domain });
 }

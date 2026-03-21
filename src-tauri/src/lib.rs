@@ -57,6 +57,9 @@ pub fn run() {
             d1::fetch_d1_databases,
             d1::execute_d1_query,
             d1::get_d1_database_info,
+            r2::create_r2_bucket,
+            r2::delete_r2_bucket,
+            r2::empty_r2_bucket,
             r2::fetch_r2_buckets,
             r2::list_r2_objects,
             r2::delete_r2_object,
@@ -64,6 +67,10 @@ pub fn run() {
             r2::cancel_upload_r2_object,
             r2::download_r2_object,
             r2::get_r2_bucket_domain,
+            r2::update_r2_bucket_managed_domain,
+            r2::add_r2_bucket_custom_domain,
+            r2::remove_r2_bucket_custom_domain,
+            r2::get_r2_bucket_domains_list,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

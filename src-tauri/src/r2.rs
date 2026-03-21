@@ -84,11 +84,24 @@ pub struct FolderListing {
     pub folders: Vec<String>,
 }
 
+#[derive(Serialize)]
+pub struct BucketDomainsInfo {
+    managed: serde_json::Value,
+    custom: Vec<serde_json::Value>,
+}
+
 #[derive(Clone, Serialize)]
 pub struct UploadProgress {
     upload_id: String,
     bytes_uploaded: u64,
     total_bytes: u64,
+}
+
+#[derive(Clone, Serialize)]
+pub struct EmptyBucketProgress {
+    pub bucket_name: String,
+    pub deleted: u32,
+    pub total: u32,
 }
 
 // ── Helper ─────────────────────────────────────────────────────────────────────
@@ -124,6 +137,124 @@ async fn resolve_account_id(client: &CloudflareClient) -> Result<String, R2Error
 // ── Tauri Commands ─────────────────────────────────────────────────────────────
 
 /// Fetches the list of all R2 buckets for the authenticated Cloudflare account.
+#[tauri::command]
+pub async fn create_r2_bucket(bucket_name: String) -> Result<(), R2Error> {
+    let creds = tokio::task::spawn_blocking(read_credentials)
+        .await
+        .map_err(|e| R2Error::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))??;
+    let client = CloudflareClient::new(&creds.oauth_token)?;
+    let account_id = match creds.account_id { Some(id) => id, None => resolve_account_id(&client).await? };
+    let url = format!("accounts/{}/r2/buckets", account_id);
+    let body = serde_json::json!({ "name": bucket_name });
+    let resp = client.post(&url).json(&body).send().await?.json::<CfResponse<serde_json::Value>>().await?;
+    if !resp.success { return Err(R2Error::Api(api_errors_to_string(&resp.errors))); }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn delete_r2_bucket(bucket_name: String) -> Result<(), R2Error> {
+    let creds = tokio::task::spawn_blocking(read_credentials)
+        .await
+        .map_err(|e| R2Error::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))??;
+    let client = CloudflareClient::new(&creds.oauth_token)?;
+    let account_id = match creds.account_id { Some(id) => id, None => resolve_account_id(&client).await? };
+    let url = format!("accounts/{}/r2/buckets/{}", account_id, bucket_name);
+    
+    let resp = client.delete(&url).send().await?;
+    if !resp.status().is_success() {
+        let text = resp.text().await.unwrap_or_default();
+        return Err(R2Error::Api(format!("Delete bucket failed: {}", text)));
+    }
+    
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn empty_r2_bucket(
+    app: tauri::AppHandle,
+    bucket_name: String
+) -> Result<(), R2Error> {
+    let creds = tokio::task::spawn_blocking(read_credentials)
+        .await
+        .map_err(|e| R2Error::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))??;
+
+    let client = CloudflareClient::new(&creds.oauth_token)?;
+    let account_id = match creds.account_id {
+        Some(id) => id,
+        None => resolve_account_id(&client).await?,
+    };
+
+    let mut cursor: Option<String> = None;
+    let mut all_keys = Vec::new();
+
+    loop {
+        let mut url = format!("accounts/{}/r2/buckets/{}/objects", account_id, bucket_name);
+        if let Some(c) = &cursor {
+            url = format!("{}?cursor={}", url, urlencoding::encode(c));
+        }
+
+        let resp = client
+            .get(&url)
+            .send()
+            .await?
+            .json::<CfResponse<Vec<serde_json::Value>>>()
+            .await?;
+
+        if !resp.success {
+            return Err(R2Error::Api(api_errors_to_string(&resp.errors)));
+        }
+
+        if let Some(objects) = resp.result {
+            for obj in objects {
+                if let Some(k) = obj["key"].as_str() {
+                    all_keys.push(k.to_string());
+                }
+            }
+        }
+
+        let mut is_truncated = false;
+        if let Some(info) = resp.result_info {
+            if let Some(trunc) = info.get("truncated").and_then(|v| v.as_bool()) {
+                is_truncated = trunc;
+            } else if let Some(trunc) = info.get("is_truncated").and_then(|v| v.as_bool()) {
+                is_truncated = trunc;
+            }
+            
+            if let Some(c) = info.get("cursor").and_then(|v| v.as_str()) {
+                cursor = Some(c.to_string());
+            } else {
+                cursor = None;
+            }
+        }
+
+        if !is_truncated || cursor.is_none() || all_keys.is_empty() {
+            break;
+        }
+    }
+
+    let total = all_keys.len() as u32;
+    let mut deleted = 0;
+
+    let _ = app.emit("empty-bucket-progress", EmptyBucketProgress {
+        bucket_name: bucket_name.clone(),
+        deleted,
+        total,
+    });
+
+    for key in all_keys {
+        let url = format!("accounts/{}/r2/buckets/{}/objects/{}", account_id, bucket_name, urlencoding::encode(&key));
+        let _ = client.delete(&url).send().await?;
+        deleted += 1;
+        let _ = app.emit("empty-bucket-progress", EmptyBucketProgress {
+            bucket_name: bucket_name.clone(),
+            deleted,
+            total,
+        });
+    }
+
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn fetch_r2_buckets() -> Result<Vec<R2Bucket>, R2Error> {
     let creds = tokio::task::spawn_blocking(read_credentials)
@@ -498,4 +629,74 @@ pub async fn get_r2_bucket_domain(bucket_name: String) -> Result<Option<String>,
     }
 
     Ok(None)
+}
+
+#[tauri::command]
+pub async fn update_r2_bucket_managed_domain(bucket_name: String, enabled: bool) -> Result<(), R2Error> {
+    let creds = tokio::task::spawn_blocking(read_credentials)
+        .await
+        .map_err(|e| R2Error::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))??;
+    let client = CloudflareClient::new(&creds.oauth_token)?;
+    let account_id = match creds.account_id { Some(id) => id, None => resolve_account_id(&client).await? };
+    let url = format!("accounts/{}/r2/buckets/{}/domains/managed", account_id, bucket_name);
+    let body = serde_json::json!({ "enabled": enabled });
+    let resp = client.put(&url).json(&body).send().await?;
+    if !resp.status().is_success() { return Err(R2Error::Api(resp.text().await.unwrap_or_default())); }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn add_r2_bucket_custom_domain(bucket_name: String, domain: String, zone_id: String) -> Result<(), R2Error> {
+    let creds = tokio::task::spawn_blocking(read_credentials)
+        .await
+        .map_err(|e| R2Error::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))??;
+    let client = CloudflareClient::new(&creds.oauth_token)?;
+    let account_id = match creds.account_id { Some(id) => id, None => resolve_account_id(&client).await? };
+    let url = format!("accounts/{}/r2/buckets/{}/domains/custom", account_id, bucket_name);
+    let body = serde_json::json!({ "domain": domain, "zoneId": zone_id });
+    let resp = client.post(&url).json(&body).send().await?;
+    if !resp.status().is_success() { return Err(R2Error::Api(resp.text().await.unwrap_or_default())); }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn remove_r2_bucket_custom_domain(bucket_name: String, domain: String) -> Result<(), R2Error> {
+    let creds = tokio::task::spawn_blocking(read_credentials)
+        .await
+        .map_err(|e| R2Error::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))??;
+    let client = CloudflareClient::new(&creds.oauth_token)?;
+    let account_id = match creds.account_id { Some(id) => id, None => resolve_account_id(&client).await? };
+    let url = format!("accounts/{}/r2/buckets/{}/domains/custom/{}", account_id, bucket_name, domain);
+    let resp = client.delete(&url).send().await?;
+    if !resp.status().is_success() { return Err(R2Error::Api(resp.text().await.unwrap_or_default())); }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn get_r2_bucket_domains_list(bucket_name: String) -> Result<BucketDomainsInfo, R2Error> {
+    let creds = tokio::task::spawn_blocking(read_credentials)
+        .await
+        .map_err(|e| R2Error::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))??;
+    let client = CloudflareClient::new(&creds.oauth_token)?;
+    let account_id = match creds.account_id { Some(id) => id, None => resolve_account_id(&client).await? };
+    
+    let mut managed = serde_json::json!({ "enabled": false, "domain": null });
+    let managed_url = format!("accounts/{}/r2/buckets/{}/domains/managed", account_id, bucket_name);
+    if let Ok(resp) = client.get(&managed_url).send().await {
+        if let Ok(data) = resp.json::<serde_json::Value>().await {
+            managed = data["result"].clone();
+        }
+    }
+    
+    let mut custom = Vec::new();
+    let custom_url = format!("accounts/{}/r2/buckets/{}/domains/custom", account_id, bucket_name);
+    if let Ok(resp) = client.get(&custom_url).send().await {
+        if let Ok(data) = resp.json::<serde_json::Value>().await {
+            if let Some(domains) = data["result"]["domains"].as_array() {
+                custom = domains.clone();
+            }
+        }
+    }
+    
+    Ok(BucketDomainsInfo { managed, custom })
 }
