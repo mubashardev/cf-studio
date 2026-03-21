@@ -1,6 +1,6 @@
 [package]
 name = "cf-studio"
-version = "0.0.1"
+version = "1.0.0"
 description = "A blazing-fast native desktop client for Cloudflare D1 and KV"
 authors = ["CF Studio"]
 edition = "2021"
