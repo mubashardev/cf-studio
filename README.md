@@ -22,6 +22,8 @@ curl -fsSL https://install.cfstudio.dev | bash
 irm https://install.cfstudio.dev | iex
 ```
 
+![Terminal Installer](screenshots/Terminal%20Look.png)
+
 ## Features
 
 ### D1 Explorer
