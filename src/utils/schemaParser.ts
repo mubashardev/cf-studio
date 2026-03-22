@@ -310,8 +310,8 @@ export function parseSQLiteSchemaToGraph(
         type: "smoothstep",
         animated: false,
         style: { strokeWidth: 1.5 },
-        labelStyle: { fontSize: 10, fill: "hsl(var(--foreground))", fontWeight: 500 },
-        labelBgStyle: { fill: "hsl(var(--background))", rx: 4, ry: 4 },
+        labelStyle: { fontSize: 10, fill: "var(--foreground)", fontWeight: 500 },
+        labelBgStyle: { fill: "var(--background)", rx: 4, ry: 4 },
         markerEnd: { type: "arrowclosed" as const, width: 12, height: 12 },
       });
     }

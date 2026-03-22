@@ -71,11 +71,11 @@ function TableNode({ data, selected }: NodeProps<Node<TableNodeData>>) {
                 position={Position.Left}
                 id={`${tableName}__${col.name}`}
                 style={{
-                  background: "hsl(var(--primary))",
+                  background: "var(--primary)",
                   width: 7,
                   height: 7,
                   left: -4,
-                  border: "1.5px solid hsl(var(--background))",
+                  border: "1.5px solid var(--background)",
                 }}
               />
 
@@ -111,11 +111,11 @@ function TableNode({ data, selected }: NodeProps<Node<TableNodeData>>) {
                 position={Position.Right}
                 id={`${tableName}__${col.name}`}
                 style={{
-                  background: "hsl(var(--primary))",
+                  background: "var(--primary)",
                   width: 7,
                   height: 7,
                   right: -4,
-                  border: "1.5px solid hsl(var(--background))",
+                  border: "1.5px solid var(--background)",
                 }}
               />
             </div>
@@ -182,7 +182,7 @@ export function SchemaVisualizer({ tables }: SchemaVisualizerProps) {
   }
 
   return (
-    <div className="h-full w-full" style={{ background: "hsl(var(--background))" }}>
+    <div className="h-full w-full" style={{ background: "var(--background)" }}>
       <ReactFlow
         colorMode={resolvedTheme}
         nodes={nodes}
@@ -197,8 +197,8 @@ export function SchemaVisualizer({ tables }: SchemaVisualizerProps) {
         maxZoom={2}
         defaultEdgeOptions={{
           type: "smoothstep",
-          style: { strokeWidth: 1.5, stroke: "hsl(var(--muted-foreground))" },
-          markerEnd: { type: "arrowclosed", width: 12, height: 12, color: "hsl(var(--muted-foreground))" },
+          style: { strokeWidth: 1.5, stroke: "var(--muted-foreground)" },
+          markerEnd: { type: "arrowclosed", width: 12, height: 12, color: "var(--muted-foreground)" },
         }}
         proOptions={{ hideAttribution: true }}
       >
@@ -207,7 +207,7 @@ export function SchemaVisualizer({ tables }: SchemaVisualizerProps) {
           variant={BackgroundVariant.Dots}
           gap={20}
           size={1}
-          color="hsl(var(--muted-foreground) / 0.2)"
+          color="color-mix(in oklch, var(--muted-foreground), transparent 80%)"
         />
 
         {/* Zoom + fit controls */}
@@ -219,11 +219,11 @@ export function SchemaVisualizer({ tables }: SchemaVisualizerProps) {
 
         {/* Mini-map */}
         <MiniMap
-          nodeColor={() => "hsl(var(--muted))"}
-          maskColor="hsl(var(--background) / 0.7)"
+          nodeColor={() => "var(--muted)"}
+          maskColor="color-mix(in oklch, var(--background), transparent 30%)"
           style={{
-            background: "hsl(var(--background))",
-            border: "1px solid hsl(var(--border))",
+            background: "var(--background)",
+            border: "1px solid var(--border)",
             borderRadius: 8,
             bottom: 16,
             right: 16,

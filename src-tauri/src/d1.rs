@@ -210,7 +210,7 @@ async fn fetch_table_metadata(
                 return Ok((tables.len() as u32, tables));
             }
         },
-        Err(e) => {
+        Err(_) => {
 
         }
     }
