@@ -106,7 +106,7 @@ jobs:
             rust_target: x86_64-unknown-linux-gnu
             label: linux_x64
             bundle_type: deb
-          - runner: ubuntu-24.04-arm64
+          - runner: ubuntu-22.04-arm64
             rust_target: aarch64-unknown-linux-gnu
             label: linux_arm64
             bundle_type: deb
