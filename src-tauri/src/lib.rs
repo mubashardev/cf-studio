@@ -4,6 +4,7 @@ pub mod cloudflare_auth;
 pub mod cloudflare_client;
 pub mod d1;
 pub mod r2;
+pub mod setup;
 pub mod user;
 
 use cloudflare_auth::{read_credentials, AuthError, CloudflareCredentials};
@@ -71,6 +72,8 @@ pub fn run() {
             r2::add_r2_bucket_custom_domain,
             r2::remove_r2_bucket_custom_domain,
             r2::get_r2_bucket_domains_list,
+            setup::check_dependencies,
+            setup::install_dependencies,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

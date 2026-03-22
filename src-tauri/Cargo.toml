@@ -48,7 +48,7 @@ chrono = "0.4"
 dirs = "5"
 
 # Async runtime
-tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros"] }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "process"] }
 tokio-util = { version = "0.7.18", features = ["codec"] }
 futures-util = "0.3.32"
 async-stream = "0.3.6"
