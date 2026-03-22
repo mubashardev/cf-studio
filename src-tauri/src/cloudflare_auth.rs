@@ -291,6 +291,84 @@ pub async fn refresh_wrangler_token() -> Result<CloudflareCredentials, AuthError
         .map_err(|e| AuthError::ExecError(e.to_string()))?
 }
 
+// ── Login ──────────────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn run_wrangler_login() -> Result<(), AuthError> {
+    tokio::task::spawn_blocking(|| {
+        let mut cmd = if cfg!(target_os = "windows") {
+            let mut c = std::process::Command::new("cmd");
+            // use start to pop open a cmd window so they can see the prompt if any
+            c.args(["/c", "start", "cmd", "/c", "npx wrangler login ^&^& pause"]);
+            c
+        } else {
+            let mut c = std::process::Command::new("sh");
+            // on macOS/Linux it should open the browser directly or we can use open/xdg-open
+            c.args(["-c", "npx wrangler login"]);
+            c
+        };
+
+        // Run silently
+        let _ = cmd.output();
+    })
+    .await
+    .map_err(|e| AuthError::ExecError(e.to_string()))?;
+
+    Ok(())
+}
+
+pub fn start_wrangler_watcher(app: tauri::AppHandle) {
+    use notify::{Watcher, RecursiveMode};
+    use std::sync::mpsc::channel;
+    use std::time::Duration;
+    use tauri::Emitter;
+
+    std::thread::spawn(move || {
+        let (tx, rx) = channel();
+        let mut watcher = match notify::recommended_watcher(tx) {
+            Ok(w) => w,
+            Err(e) => {
+                eprintln!("Failed to start notify: {}", e);
+                return;
+            }
+        };
+
+        if let Some(mut path) = dirs::home_dir() {
+            path.push(".wrangler");
+            path.push("config");
+            
+            if !path.exists() {
+                let _ = std::fs::create_dir_all(&path);
+            }
+            
+            if watcher.watch(&path, RecursiveMode::NonRecursive).is_err() {
+                eprintln!("Failed to watch wrangler config dir");
+                return;
+            }
+
+            for res in rx {
+                match res {
+                    Ok(event) => {
+                        let is_default_toml = event.paths.iter().any(|p| {
+                            p.file_name().and_then(|n| n.to_str()) == Some("default.toml")
+                        });
+                        
+                        if is_default_toml {
+                            std::thread::sleep(Duration::from_millis(300));
+                            if read_credentials().is_ok() {
+                                let _ = app.emit("wrangler-session-updated", ());
+                            } else {
+                                let _ = app.emit("wrangler-session-deleted", ());
+                            }
+                        }
+                    },
+                    Err(e) => eprintln!("watch error: {:?}", e),
+                }
+            }
+        }
+    });
+}
+
 // ── Accounts API ───────────────────────────────────────────────────────────────
 
 /// Fetches the list of Cloudflare accounts visible to the current OAuth token.

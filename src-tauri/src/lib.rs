@@ -50,14 +50,20 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
         .manage(UploadState::default())
+        .setup(|app| {
+            cloudflare_auth::start_wrangler_watcher(app.handle().clone());
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             greet,
             get_cloudflare_token,
             cloudflare_auth::refresh_wrangler_token,
+            cloudflare_auth::run_wrangler_login,
             cloudflare_auth::fetch_cloudflare_accounts,
             d1::fetch_d1_databases,
             d1::execute_d1_query,
             d1::get_d1_database_info,
+            user::fetch_user_profile,
             r2::create_r2_bucket,
             r2::delete_r2_bucket,
             r2::empty_r2_bucket,

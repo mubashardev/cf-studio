@@ -112,6 +112,22 @@ interface EmptyStateProps {
 }
 
 function EmptyState({ variant, message, onRefresh, accountId }: EmptyStateProps) {
+  const handleCopyCommand = async () => {
+    try {
+      await navigator.clipboard.writeText("npx wrangler login");
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleRunCommand = async () => {
+    try {
+      await invokeCloudflare("run_wrangler_login");
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const configs = {
     "no-auth": {
       icon: Terminal,
@@ -120,11 +136,18 @@ function EmptyState({ variant, message, onRefresh, accountId }: EmptyStateProps)
       body: (
         <>
           CF Studio reads your local Wrangler session for zero-touch auth.
-          Run the command below in your terminal, then click{" "}
-          <span className="font-medium text-foreground">Refresh</span>.
-          <div className="mt-3 flex items-center gap-2 rounded-md border border-border bg-muted/60 px-3 py-2 font-mono text-sm text-foreground">
-            <span className="select-text">wrangler login</span>
+          Run the command below in your terminal or click the button below. 
+          The page will automatically refresh once you are logged in.
+          <div className="mt-3 flex items-center justify-between gap-2 rounded-md border border-border bg-muted/60 px-3 py-2 font-mono text-sm text-foreground">
+            <span className="select-text">npx wrangler login</span>
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleCopyCommand} title="Copy command">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+            </Button>
           </div>
+          <Button variant="secondary" size="sm" className="w-full mt-3" onClick={handleRunCommand}>
+            <Terminal size={14} className="mr-2" />
+            Run Command in Background
+          </Button>
           {message && (
             <p className="mt-3 text-xs text-destructive/80 select-text break-all">
               {message}

@@ -53,3 +53,4 @@ tokio-util = { version = "0.7.18", features = ["codec"] }
 futures-util = "0.3.32"
 async-stream = "0.3.6"
 bytes = "1.11.1"
+notify = "8.2.0"

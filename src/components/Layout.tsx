@@ -343,6 +343,25 @@ export function Layout() {
     }
   }, [userProfile, setUserProfile]);
 
+  // Set up global Wrangler session file watchers
+  useEffect(() => {
+    let unlisteners: (() => void) | undefined;
+    const setupListeners = async () => {
+      const { listen } = await import("@tauri-apps/api/event");
+      const u1 = await listen("wrangler-session-updated", () => {
+        useAppStore.getState().clearCache();
+        window.location.reload();
+      });
+      const u2 = await listen("wrangler-session-deleted", () => {
+        useAppStore.getState().clearCache();
+        window.location.reload();
+      });
+      return () => { u1(); u2(); };
+    };
+    setupListeners().then((unsubs) => { unlisteners = unsubs; });
+    return () => { if (unlisteners) unlisteners(); };
+  }, []);
+
   const currentNav = NAV_GROUPS.flatMap((g) => g.items).find(
     (n) => n.id === activeId,
   );

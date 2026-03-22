@@ -324,14 +324,17 @@ pub async fn execute_d1_query(
 /// Runs `wrangler d1 info <name> --json` to fetch accurate table counts and sizes.
 #[tauri::command]
 pub async fn get_d1_database_info(name: String) -> Result<D1DatabaseInfo, D1Error> {
-    let output = std::process::Command::new(if cfg!(target_os = "windows") { "cmd" } else { "npx" })
-        .args(if cfg!(target_os = "windows") {
-            vec!["/c", "npx", "wrangler", "d1", "info", &name, "--json"]
-        } else {
-            vec!["wrangler", "d1", "info", &name, "--json"]
-        })
-        .output()
-        .map_err(|e| D1Error::Api(format!("Failed to execute wrangler: {}", e)))?;
+    let output = if cfg!(target_os = "windows") {
+        std::process::Command::new("cmd")
+            .args(["/c", "npx", "wrangler", "d1", "info", &name, "--json"])
+            .output()
+    } else {
+        let shell = if cfg!(target_os = "macos") { "zsh" } else { "bash" };
+        let cmd = format!("export PATH=\"$HOME/.npm-global/bin:$PATH\" && npx wrangler d1 info \"{}\" --json", name);
+        std::process::Command::new(shell)
+            .args(["-l", "-c", &cmd])
+            .output()
+    }.map_err(|e| D1Error::Api(format!("Failed to execute wrangler: {}", e)))?;
 
     if !output.status.success() {
         return Err(D1Error::Api(String::from_utf8_lossy(&output.stderr).to_string()));
