@@ -1,7 +1,7 @@
 {
   "name": "cf-studio",
   "private": true,
-  "version": "1.0.6",
+  "version": "1.0.7",
   "author": "CF Studio",
   "type": "module",
   "scripts": {
