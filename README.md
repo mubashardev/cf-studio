@@ -4,6 +4,22 @@ A blazing-fast, native desktop client for Cloudflare D1 and R2.
 
 [Website](https://cfstudio.dev) • [Portfolio](https://mubashar.dev) • [YouTube](https://youtube.com/@mubashardev)
 
+## Install
+
+For macOS/Linux:
+```bash
+curl -fsSL https://install.cfstudio.dev | bash
+```
+
+For Windows:
+```powershell
+irm https://install.cfstudio.dev | iex
+```
+
+<div align="center">
+  <img src="screenshots/Terminal Look.png" width="800" alt="CF Studio installer in the terminal" />
+</div>
+
 Managing Cloudflare Edge databases and storage shouldn't require juggling CLI commands or waiting for web dashboards to load. CF Studio provides a sleek, native GUI to manage your D1 databases and R2 buckets directly from your desktop.
 
 The best part? **Zero configuration.** CF Studio automatically detects your local `wrangler` session. Open the app, and your resources are instantly available.
