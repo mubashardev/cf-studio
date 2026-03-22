@@ -3,7 +3,7 @@
 // D1 Databases listing page — auto-fetches from the Cloudflare API.
 // Clicking a row drills into DatabaseExplorer for schema inspection.
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { RefreshCw, Database, Terminal, AlertCircle, Loader2, HardDrive, ChevronRight } from "lucide-react";
 import {
   Table,
@@ -45,44 +45,7 @@ function formatBytes(bytes?: number): string {
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
-export interface D1DatabaseInfo {
-  uuid: string;
-  name: string;
-  num_tables?: number | null;
-  database_size?: number | null;
-}
 
-function NumTablesCell({ dbName }: { dbName: string }) {
-  const [count, setCount] = useState<number | null>(null);
-
-  useEffect(() => {
-    let mounted = true;
-    const fetchCount = async () => {
-      try {
-        const info = await invokeCloudflare<D1DatabaseInfo>("get_d1_database_info", { name: dbName });
-        if (mounted && info.num_tables != null) {
-          setCount(info.num_tables);
-        } else if (mounted) {
-          setCount(0);
-        }
-      } catch {
-        if (mounted) setCount(0);
-      }
-    };
-    fetchCount();
-    return () => { mounted = false; };
-  }, [dbName]);
-
-  if (count === null) {
-    return <span className="text-muted-foreground/50 text-xs animate-pulse">—</span>;
-  }
-
-  return (
-    <Badge variant="secondary" className="font-mono text-[10px] uppercase tracking-wide">
-      {new Intl.NumberFormat("en-US").format(count)}
-    </Badge>
-  );
-}
 
 function LoadingSkeleton() {
   return (
@@ -264,9 +227,11 @@ function DatabaseRow({ db, onClick }: DatabaseRowProps) {
         {formatDate(db.created_at)}
       </TableCell>
 
-      {/* Tables (Live Count) */}
+      {/* Tables */}
       <TableCell className="py-3.5">
-        <NumTablesCell dbName={db.name} />
+        <Badge variant="secondary" className="font-mono text-[10px] uppercase tracking-wide">
+          {new Intl.NumberFormat("en-US").format(db.num_tables ?? 0)}
+        </Badge>
       </TableCell>
 
       {/* Size */}

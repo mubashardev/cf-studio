@@ -74,6 +74,11 @@ export interface CloudflareAccount {
   name: string;
 }
 
+export interface D1TableSummary {
+  name: string;
+  ncol: number;
+}
+
 export interface D1Database {
   uuid: string;
   name: string;
@@ -81,6 +86,7 @@ export interface D1Database {
   version?: string;
   num_tables?: number;
   file_size?: number;
+  tables?: D1TableSummary[];
 }
 
 export interface D1QueryMeta {
@@ -103,6 +109,7 @@ export interface D1QueryResult {
 export interface D1TableSchema {
   name: string;
   sql: string | null;
+  columnsCount?: number;
 }
 
 // Discriminated union for each async resource
@@ -304,11 +311,21 @@ export function useD1Schema(databaseId: string) {
         params: null,
       });
 
+      // Look up column counts from the cached database list
+      const allDb = useAppStore.getState().databases;
+      const currentDb = allDb.find(d => d.uuid === databaseId);
+      const tableSummaries = currentDb?.tables ?? [];
+
       const rows = queryResults[0]?.results ?? [];
-      const tables: D1TableSchema[] = rows.map((r) => ({
-        name: String(r["name"] ?? ""),
-        sql: r["sql"] != null ? String(r["sql"]) : null,
-      }));
+      const tables: D1TableSchema[] = rows.map((r) => {
+        const name = String(r["name"] ?? "");
+        const summary = tableSummaries.find(s => s.name === name);
+        return {
+          name,
+          sql: r["sql"] != null ? String(r["sql"]) : null,
+          columnsCount: summary?.ncol,
+        };
+      });
 
       useAppStore.getState().setQueryCacheItem(cacheKey, tables);
       setState({ status: "success", data: tables });

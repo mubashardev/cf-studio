@@ -260,9 +260,37 @@ function DataTab({ databaseId, table, allTables, onTableSelect }: DataTabProps) 
           <Sheet size={13} strokeWidth={1.75} className="text-primary" />
           <span className={cn("text-xs font-medium text-foreground", blurTable && "blur-[4px] hover:blur-none transition-all duration-200 select-none hover:select-auto cursor-default")}>{table.name}</span>
           {state.status === "success" && (
-            <Badge variant="secondary" className="text-[10px] font-mono">
-              {state.data.rows.length} row{state.data.rows.length !== 1 ? "s" : ""}
-            </Badge>
+            <TooltipProvider delayDuration={200}>
+              <div className="flex items-center gap-1.5 ml-0.5">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge 
+                      variant="secondary" 
+                      className="h-5 px-1.5 text-[10px] font-mono bg-muted/40 hover:bg-muted/60 transition-colors cursor-help border-transparent"
+                    >
+                      {table.columnsCount ?? 0} {table.columnsCount === 1 ? "col" : "cols"}
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="text-[11px] px-2 py-1 shadow-md border-border/80 bg-background/95 backdrop-blur-sm">
+                    Total {table.columnsCount ?? 0} columns exist in {table.name}
+                  </TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge 
+                      variant="secondary" 
+                      className="h-5 px-1.5 text-[10px] font-mono bg-primary/10 hover:bg-primary/20 text-primary border-primary/20 transition-colors cursor-help"
+                    >
+                      {state.data.rows.length} row{state.data.rows.length !== 1 ? "s" : ""}
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="text-[11px] px-2 py-1 shadow-md border-border/80 bg-background/95 backdrop-blur-sm">
+                    {state.data.rows.length} rows fetched
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+            </TooltipProvider>
           )}
         </div>
         <div className="flex items-center gap-1">
@@ -603,6 +631,14 @@ function TableListItem({
         "flex-1 truncate",
         blurTable && "blur-[4px] hover:blur-none transition-all duration-200 select-none hover:select-auto cursor-default"
       )}>{table.name}</span>
+      {table.columnsCount !== undefined && (
+        <Badge 
+          variant="secondary" 
+          className="px-1.5 py-0 h-4 text-[9px] font-mono shrink-0 bg-muted/40 text-muted-foreground/40 group-hover:bg-muted group-hover:text-muted-foreground transition-colors"
+        >
+          {table.columnsCount} {table.columnsCount === 1 ? "col" : "cols"}
+        </Badge>
+      )}
       {active && <ChevronRight size={12} className="text-primary shrink-0" />}
     </button>
   );

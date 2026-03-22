@@ -44,6 +44,12 @@ struct CfAccount {
     name: Option<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct D1TableSummary {
+    pub name: String,
+    pub ncol: u32,
+}
+
 /// A single D1 database as returned by the Cloudflare list endpoint.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct D1Database {
@@ -53,16 +59,10 @@ pub struct D1Database {
     pub version: Option<String>,
     pub num_tables: Option<u32>,
     pub file_size: Option<u64>,
+    pub tables: Option<Vec<D1TableSummary>>,
 }
 
-/// Returned by `wrangler d1 info <name> --json`
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct D1DatabaseInfo {
-    pub uuid: String,
-    pub name: String,
-    pub num_tables: Option<u32>,
-    pub database_size: Option<u64>,
-}
+
 
 // ── Helper ─────────────────────────────────────────────────────────────────────
 
@@ -166,19 +166,12 @@ async fn execute_query(
         .post(&endpoint)
         .json(&body)
         .send()
-        .await?
-        .json::<CfResponse<Vec<D1QueryResult>>>()
         .await?;
+    let resp_text = resp.text().await.map_err(|e| D1Error::Http(e))?;
+    let resp: CfResponse<Vec<D1QueryResult>> = serde_json::from_str(&resp_text).map_err(|e| D1Error::Api(format!("Failed to parse response: {}. Body: {}", e, resp_text)))?;
 
     if !resp.success {
-        std::fs::write(
-            "/tmp/cf-studio-debug.json",
-            format!(
-                "Token: {token}\nAccount: {account_id}\nDB: {database_id}\nEndpoint: {endpoint}\nBody: {body}\nError: {err}",
-                token = client.base_url, // wait, we don't have token here. let's just write what we can
-                err = api_errors_to_string(&resp.errors)
-            ),
-        ).unwrap_or(());
+        println!("DEBUG D1 QUERY FAILED: {:?}", resp.errors);
         return Err(D1Error::Api(api_errors_to_string(&resp.errors)));
     }
 
@@ -194,31 +187,35 @@ async fn execute_query(
     Ok(results)
 }
 
-async fn fetch_table_count(
+async fn fetch_table_metadata(
     client: &CloudflareClient,
     account_id: &str,
     database_id: &str,
-) -> Result<u32, D1Error> {
-    const COUNT_SQL: &str =
-        "SELECT COUNT(*) as count FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';";
+) -> Result<(u32, Vec<D1TableSummary>), D1Error> {
+    // We'll use PRAGMA table_list because it gives both name and ncol in one go.
+    match execute_query(client, account_id, database_id, "PRAGMA table_list;", None).await {
+        Ok(results) => {
+            if let Some(res) = results.get(0) {
+                let tables: Vec<D1TableSummary> = res.results.iter().filter_map(|v| {
+                    if let Some(name) = v.get("name").and_then(|v| v.as_str()) {
+                        if !name.starts_with("sqlite_") && !name.starts_with("d1_") && !name.starts_with("_cf_") {
+                            let ncol = v.get("ncol").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+                            return Some(D1TableSummary { name: name.to_string(), ncol });
+                        }
+                    }
+                    None
+                }).collect();
+                
+                println!("DEBUG [PRAGMA] Metadata for {}: {} tables", database_id, tables.len());
+                return Ok((tables.len() as u32, tables));
+            }
+        },
+        Err(e) => {
+            println!("DEBUG [PRAGMA] FAILED for {}: {}", database_id, e);
+        }
+    }
 
-    let results = execute_query(client, account_id, database_id, COUNT_SQL.into(), None).await?;
-    let count_value = results
-        .get(0)
-        .and_then(|r| r.results.get(0))
-        .and_then(|row| row.get("count"));
-
-    let count = match count_value {
-        Some(v) if v.is_u64() => v.as_u64().unwrap_or(0),
-        Some(v) if v.is_i64() => v.as_i64().unwrap_or(0).max(0) as u64,
-        Some(v) if v.is_string() => v
-            .as_str()
-            .and_then(|s| s.parse::<u64>().ok())
-            .unwrap_or(0),
-        _ => 0,
-    };
-
-    Ok(count.min(u32::MAX as u64) as u32)
+    Ok((0, vec![]))
 }
 
 // ── Tauri command ──────────────────────────────────────────────────────────────
@@ -250,17 +247,20 @@ pub async fn fetch_d1_databases() -> Result<Vec<D1Database>, D1Error> {
     };
 
     let mut databases = list_databases(&client, &account_id).await?;
+    println!("DEBUG D1 LIST SIZE: {}", databases.len());
 
     for db in &mut databases {
-        if db.num_tables.is_some() {
-            continue;
-        }
-
-        match fetch_table_count(&client, &account_id, &db.uuid).await {
-            Ok(count) => db.num_tables = Some(count),
-            Err(_) => {
-                // Best-effort: table counts shouldn't block listing.
-                db.num_tables = None;
+        // Run the metadata fetch if count is missing (None) or 0 (likely placeholder)
+        if db.num_tables.is_none() || db.num_tables == Some(0) {
+            match fetch_table_metadata(&client, &account_id, &db.uuid).await {
+                Ok((count, tables)) => {
+                    db.num_tables = Some(count);
+                    db.tables = Some(tables);
+                },
+                Err(_) => {
+                    db.num_tables = Some(0);
+                    db.tables = Some(vec![]);
+                }
             }
         }
     }
@@ -319,28 +319,4 @@ pub async fn execute_d1_query(
     .await
 }
 
-// ── Local CLI command ──────────────────────────────────────────────────────────
 
-/// Runs `wrangler d1 info <name> --json` to fetch accurate table counts and sizes.
-#[tauri::command]
-pub async fn get_d1_database_info(name: String) -> Result<D1DatabaseInfo, D1Error> {
-    let output = if cfg!(target_os = "windows") {
-        std::process::Command::new("cmd")
-            .args(["/c", "npx", "wrangler", "d1", "info", &name, "--json"])
-            .output()
-    } else {
-        let shell = if cfg!(target_os = "macos") { "zsh" } else { "bash" };
-        let cmd = format!("export PATH=\"$HOME/.npm-global/bin:$PATH\" && npx wrangler d1 info \"{}\" --json", name);
-        std::process::Command::new(shell)
-            .args(["-l", "-c", &cmd])
-            .output()
-    }.map_err(|e| D1Error::Api(format!("Failed to execute wrangler: {}", e)))?;
-
-    if !output.status.success() {
-        return Err(D1Error::Api(String::from_utf8_lossy(&output.stderr).to_string()));
-    }
-
-    let json_str = String::from_utf8_lossy(&output.stdout);
-    serde_json::from_str(&json_str)
-        .map_err(|e| D1Error::Api(format!("Failed to parse wrangler output: {}", e)))
-}
