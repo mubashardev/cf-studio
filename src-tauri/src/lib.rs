@@ -41,6 +41,25 @@ fn greet(name: &str) -> String {
 
 // ── Tauri App Entry Point ──────────────────────────────────────────────────────
 
+use std::process::Command;
+
+#[tauri::command]
+fn fix_mac_quarantine() -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        // We target the standard Applications path for CF Studio
+        let status = Command::new("xattr")
+            .args(["-cr", "/Applications/CF Studio.app"])
+            .status()
+            .map_err(|e| e.to_string())?;
+        
+        if !status.success() {
+            return Err("Failed to clear xattr".to_string());
+        }
+    }
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -57,6 +76,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             greet,
+            fix_mac_quarantine,
             get_cloudflare_token,
             cloudflare_auth::refresh_wrangler_token,
             cloudflare_auth::run_wrangler_login,

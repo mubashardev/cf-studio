@@ -66,6 +66,12 @@ interface AppState {
   isRefreshingSession: boolean;
   privacySettings: PrivacySettings;
 
+  // ── Updater State ──
+  updateStatus: "idle" | "checking" | "available" | "downloading" | "up-to-date" | "error";
+  updateData: any | null;
+  downloadProgress: number;
+  updateError: string | null;
+
   /** Unix timestamp (ms) of the last successful databases fetch, or null. */
   lastFetched: number | null;
 
@@ -89,6 +95,11 @@ interface AppState {
   setShowTableColumnCounts: (show: boolean) => void;
   setAutoUpdate: (enabled: boolean) => void;
   setPrivacySettings: (settings: Partial<PrivacySettings>) => void;
+  
+  setUpdateStatus: (status: "idle" | "checking" | "available" | "downloading" | "up-to-date" | "error") => void;
+  setUpdateData: (data: any | null) => void;
+  setDownloadProgress: (progress: number) => void;
+  setUpdateError: (error: string | null) => void;
 
   /** Overwrite the databases list and stamp the fetch time. */
   setDatabases: (databases: D1Database[]) => void;
@@ -136,6 +147,10 @@ export const useAppStore = create<AppState>()(
         r2BucketNames: true,
         r2FileNames: true,
       },
+      updateStatus: "idle",
+      updateData: null,
+      downloadProgress: 0,
+      updateError: null,
       lastFetched: null,
       kvLastFetched: null,
       r2LastFetched: null,
@@ -151,6 +166,10 @@ export const useAppStore = create<AppState>()(
       setShowTableColumnCounts: (show) => set({ showTableColumnCounts: show }),
       setAutoUpdate: (enabled) => set({ autoUpdate: enabled }),
       setPrivacySettings: (settings) => set((s) => ({ privacySettings: { ...s.privacySettings, ...settings } })),
+      setUpdateStatus: (status) => set({ updateStatus: status }),
+      setUpdateData: (data) => set({ updateData: data }),
+      setDownloadProgress: (progress) => set({ downloadProgress: progress }),
+      setUpdateError: (error) => set({ updateError: error }),
       setDatabases: (databases) =>
         set({ databases, lastFetched: Date.now() }),
 

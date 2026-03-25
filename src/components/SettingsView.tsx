@@ -320,6 +320,15 @@ export function SettingsView() {
                     </div>
                     
                     <div className="w-full max-w-sm space-y-4">
+                      {update?.isManualDetection && (
+                        <div className="p-3 bg-primary/10 border border-primary/20 rounded-xl space-y-2">
+                          <p className="text-[10px] font-bold text-primary uppercase tracking-wider text-center">Manual Update Required</p>
+                          <code className="block text-[10px] bg-background/50 p-2 rounded border border-border/50 break-all select-all text-center">
+                            {update.installCommand}
+                          </code>
+                        </div>
+                      )}
+                      
                       {status === "downloading" ? (
                         <div className="space-y-2">
                            <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
@@ -331,12 +340,12 @@ export function SettingsView() {
                         <Button 
                           className="w-full rounded-xl h-11 text-base font-semibold" 
                           onClick={() => status === "available" ? downloadUpdate() : checkForUpdates()}
-                          disabled={status === "checking"}
+                          disabled={status === "checking" || (status === "available" && update?.isManualDetection)}
                         >
                           {status === "available" ? (
                             <>
                               <Download size={18} className="mr-2" />
-                              Update to v{update?.version} Now
+                              {update?.isManualDetection ? "Manual Update Ready" : `Update to v${update?.version} Now`}
                             </>
                           ) : (
                             <>
@@ -355,7 +364,16 @@ export function SettingsView() {
                        Changelog for {update?.version || appVersion.version}
                     </h3>
                     <div className="space-y-4 p-4 rounded-xl bg-background/50 border border-border/50">
-                        {nextChangelog ? (
+                        {update?.isManualDetection ? (
+                          <div className="space-y-4">
+                            {update.body.split("\n").map((f: string, i: number) => (
+                              <div key={i} className="flex gap-3 text-sm">
+                                <span className="text-primary font-bold opacity-50 select-none">•</span>
+                                <span>{f}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : nextChangelog ? (
                           <div className="space-y-4">
                             {nextChangelog.features.map((f, i) => (
                               <div key={i} className="flex gap-3 text-sm">
