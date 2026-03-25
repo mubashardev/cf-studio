@@ -86,7 +86,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
-          token: ${{ secrets.SUBMODULE_PAT || secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.SUBMODULE_PAT != '' && secrets.SUBMODULE_PAT || secrets.GITHUB_TOKEN }}
           persist-credentials: true
 
       - name: Setup Bun
