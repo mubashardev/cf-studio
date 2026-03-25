@@ -348,6 +348,7 @@ export function SettingsView() {
                           variant={status === "available" ? "default" : "secondary"}
                           disabled={status === "checking"}
                           onClick={() => {
+                            console.log("Download button clicked, status:", status);
                             if (status === "available") {
                               downloadUpdate();
                             } else {

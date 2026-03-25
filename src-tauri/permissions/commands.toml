@@ -1,0 +1,41 @@
+[[permission]]
+identifier = "allow-local-commands"
+description = "Allow all local tauri commands defined in lib.rs"
+commands.allow = [
+    "greet",
+    "fix_mac_quarantine",
+    "get_cloudflare_token",
+    "refresh_wrangler_token",
+    "run_wrangler_login",
+    "fetch_cloudflare_accounts",
+    "fetch_d1_databases",
+    "execute_d1_query",
+    "fetch_user_profile",
+    "fetch_r2_buckets",
+    "list_r2_objects",
+    "delete_r2_object",
+    "get_r2_bucket_domain",
+    "fetch_cloudflare_zones",
+    "create_r2_bucket",
+    "delete_r2_bucket",
+    "empty_r2_bucket",
+    "upload_r2_object",
+    "cancel_upload_r2_object",
+    "download_r2_object",
+    "update_r2_bucket_managed_domain",
+    "add_r2_bucket_custom_domain",
+    "remove_r2_bucket_custom_domain",
+    "get_r2_bucket_domains_list",
+    "check_dependencies",
+    "install_dependencies",
+    "download_update_binary"
+]
+
+[[permission]]
+identifier = "allow-open-downloads"
+description = "Allow opening files in the Downloads folder"
+commands.allow = [
+    "opener:open_path"
+]
+[[permission.scope.allow]]
+path = "$DOWNLOADS/**"

@@ -55,26 +55,47 @@ async fn download_update_binary(
     use tauri::{Emitter, Manager};
     use tauri_plugin_fs::FsExt;
 
-    let response = reqwest::get(&url).await.map_err(|e| e.to_string())?;
+    let client = reqwest::Client::new();
+    let response = client.get(url).send().await.map_err(|e| e.to_string())?;
+    
+    if !response.status().is_success() {
+        return Err(format!("Server returned error {}: The update file might not be ready on GitHub yet.", response.status()));
+    }
+
     let total_size = response
         .content_length()
         .ok_or_else(|| "Failed to get content length".to_string())?;
 
-    let download_dir = app.path().download_dir().map_err(|e| e.to_string())?;
-    let dest_path = download_dir.join(&filename);
+    let cache_dir = app.path().app_cache_dir().map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(&cache_dir).map_err(|e| e.to_string())?;
+    let dest_path = cache_dir.join(&filename);
     let mut file = std::fs::File::create(&dest_path).map_err(|e| e.to_string())?;
-
-    let mut downloaded: u64 = 0;
     let mut stream = response.bytes_stream();
 
+    let mut downloaded: u64 = 0;
     while let Some(item) = stream.next().await {
         let chunk = item.map_err(|e| e.to_string())?;
         file.write_all(&chunk).map_err(|e| e.to_string())?;
         downloaded += chunk.len() as u64;
 
-        // Emit progress every ~100KB or so to not flood the bridge
-        let progress = (downloaded as f64 / total_size as f64) * 100.0;
-        let _ = window.emit("update-download-progress", progress);
+        if total_size > 0 {
+            let progress = (downloaded as f64 / total_size as f64) * 100.0;
+            app.emit("update-download-progress", progress).map_err(|e| e.to_string())?;
+        }
+    }
+
+    // --- NEW: Automatically launch the installer from Rust ---
+    #[cfg(target_os = "macos")]
+    {
+        let _ = std::process::Command::new("open")
+            .arg(&dest_path)
+            .spawn();
+    }
+    #[cfg(target_os = "windows")]
+    {
+        let _ = std::process::Command::new("cmd")
+            .args(["/C", "start", "", &dest_path])
+            .spawn();
     }
 
     Ok(dest_path.to_string_lossy().to_string())

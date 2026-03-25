@@ -107,94 +107,100 @@ export function useUpdater() {
     const activeUpdate = targetUpdate || update;
     if (!activeUpdate) return;
 
+    console.log("Starting downloadUpdate for:", activeUpdate);
     setStatus("downloading");
     setDownloadProgress(0);
 
-    const unlistenProgress = await (import('@tauri-apps/api/event').then(m => 
-      m.listen<number>("update-download-progress", (event) => {
-        setDownloadProgress(Math.round(event.payload));
-      })
-    ));
+    let unlistenProgress: (() => void) | null = null;
 
     try {
+      const { listen } = await import('@tauri-apps/api/event');
+      unlistenProgress = await listen<number>("update-download-progress", (event) => {
+        setDownloadProgress(Math.round(event.payload));
+      });
+      console.log("Progress listener established");
+
       if (activeUpdate.isManualDetection) {
-        // Refined URL construction based on historical patterns
         const isMac = navigator.platform.toLowerCase().includes('mac');
         const isWin = navigator.platform.toLowerCase().includes('win');
-        const isArm = navigator.userAgent.includes('arm64') || navigator.userAgent.includes('AppleWebKit') && !navigator.userAgent.includes('Intel');
+        const isArm = navigator.userAgent.includes('arm64') || (navigator.userAgent.includes('AppleWebKit') && !navigator.userAgent.includes('Intel'));
         
-        let binaryUrl = "";
-        let filename = "";
-
         const ver = activeUpdate.version;
+        console.log(`Resolving assets for v${ver} on ${isMac ? 'mac' : isWin ? 'win' : 'linux'} (${isArm ? 'arm64' : 'x64'})`);
+
+        // Fetch release metadata to find exact asset names
+        const relResponse = await fetch(`https://api.github.com/repos/mubashardev/cf-studio/releases/tags/v${ver}`);
+        if (!relResponse.ok) {
+           throw new Error(`Failed to fetch release metadata for v${ver}: ${relResponse.statusText}`);
+        }
+        
+        const releaseData = await relResponse.json();
+        const assets = releaseData.assets || [];
+        
+        let targetAsset = null;
         if (isMac) {
-          const archStr = isArm ? "aarch64" : "x64";
-          binaryUrl = `https://github.com/mubashardev/cf-studio/releases/download/v${ver}/CF_Studio_${ver}_${archStr}.dmg`;
-          filename = `CF_Studio_${ver}_${archStr}.dmg`;
+          // Look for .dmg with matching arch
+          targetAsset = assets.find((a: any) => a.name.endsWith('.dmg') && a.name.includes(isArm ? 'aarch64' : 'x64'));
+          // Fallback to any .dmg if arch-specific not found
+          if (!targetAsset) targetAsset = assets.find((a: any) => a.name.endsWith('.dmg'));
         } else if (isWin) {
-          binaryUrl = `https://github.com/mubashardev/cf-studio/releases/download/v${ver}/CF_Studio_${ver}_x64_en-US.msi.zip`;
-          filename = `CF_Studio_${ver}_x64_en-US.msi.zip`;
+          // Look for .msi or -setup.exe
+          targetAsset = assets.find((a: any) => a.name.endsWith('.msi') || a.name.endsWith('-setup.exe'));
         } else {
-          // Linux fallback
-          binaryUrl = `https://github.com/mubashardev/cf-studio/releases/download/v${ver}/cf-studio_${ver}_amd64.AppImage.tar.gz`;
-          filename = `cf-studio_${ver}_amd64.AppImage.tar.gz`;
+          // Look for .AppImage
+          targetAsset = assets.find((a: any) => a.name.endsWith('.AppImage'));
         }
 
-        if (!binaryUrl) throw new Error("Automatic download not supported for this platform yet.");
+        if (!targetAsset) {
+          throw new Error(`No compatible binary found in v${ver} release for your platform.`);
+        }
+
+        const binaryUrl = targetAsset.browser_download_url;
+        const filename = targetAsset.name;
+
+        console.log("Resolved asset:", filename, "URL:", binaryUrl);
 
         const destPath = await invoke("download_update_binary", { url: binaryUrl, filename }) as string;
+        console.log("Download finished to:", destPath);
         setDownloadProgress(100);
         
-        // Before relaunching/finishing, try to clear the quarantine flag on macOS
         try {
           await invoke("fix_mac_quarantine");
         } catch (e) {
-          console.error("Failed to fix quarantine:", e);
+          console.error("Quarantine fix failed (non-critical):", e);
         }
 
-        // For manual downloads, open the installer automatically
-        import('@tauri-apps/plugin-opener').then(m => m.openPath(destPath));
-        setError("Download complete! Installer launched.");
-        setStatus("available"); // Keep it available but error shows instructions
+        setError("Update ready! Installer launched automatically.");
+        setStatus("available");
       } else {
         await (activeUpdate as Update).downloadAndInstall((event) => {
-          switch (event.event) {
-            case "Started": break;
-            case "Progress":
-              if (event.data.chunkLength && (activeUpdate as any).contentLength) {
-                // native progress handling if needed
-              }
-              break;
-            case "Finished":
-              setDownloadProgress(100);
-              break;
-          }
+          if (event.event === "Finished") setDownloadProgress(100);
         });
         
-        // Before relaunching, try to clear the quarantine flag on macOS
         try {
           await invoke("fix_mac_quarantine");
         } catch (e) {
-          console.error("Failed to fix quarantine:", e);
+          console.error("Quarantine fix failed:", e);
         }
 
         await relaunch();
       }
     } catch (err) {
-      console.error("Failed to download/install update:", err);
+      console.error("Download failure:", err);
       const msg = String(err);
       if (msg.includes("404")) {
-        setError("Update assets not found on GitHub. The release might be pending or private.");
-      } else if (msg.includes("signature")) {
-        setError("Update signature verification failed. The binary might be untrusted.");
-      } else if (msg.includes("connection") || msg.includes("network")) {
-        setError("Network error. Please check your internet connection.");
+        setError("Update assets not found. The v" + activeUpdate.version + " release might not be published yet.");
+      } else if (msg.includes("not allowed") || msg.includes("not found")) {
+        setError(`Security error: ${msg}. Please check capabilities/default.json.`);
       } else {
         setError(msg);
       }
       setStatus("error");
     } finally {
-      unlistenProgress();
+      if (unlistenProgress) {
+        console.log("Cleaning up listener");
+        unlistenProgress();
+      }
     }
   }, [update]);
 
