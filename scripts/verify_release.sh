@@ -34,9 +34,9 @@ echo "Current version: $CURRENT_VERSION ($CURRENT_INT)"
 echo "New version:     $NEW_VERSION ($NEW_INT)"
 
 # Compare versions
-if [ "$NEW_INT" -le "$CURRENT_INT" ]; then
-    echo "Error: New version ($NEW_VERSION) must be strictly greater than current version ($CURRENT_VERSION)."
-    echo "Please update $CHANGELOG_JSON with a higher version."
+if [ "$NEW_INT" -lt "$CURRENT_INT" ]; then
+    echo "Error: New version ($NEW_VERSION) is less than current version ($CURRENT_VERSION)."
+    echo "Please update $CHANGELOG_JSON with a version >= $CURRENT_VERSION."
     exit 1
 fi
 

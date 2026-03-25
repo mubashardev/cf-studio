@@ -27,12 +27,19 @@ jobs:
       - name: Verify Release Version
         id: verify_version
         run: |
-          chmod +x scripts/verify_release.sh
-          NEW_VERSION=$(./scripts/verify_release.sh | tail -n 1)
-          if [ $? -ne 0 ]; then
+          set -o pipefail
+          # Run verification and capture only the last line (the version)
+          # We use a temporary file to keep the full output for debugging
+          ./scripts/verify_release.sh > verification_output.log 2>&1
+          EXIT_CODE=$?
+          cat verification_output.log
+          
+          if [ $EXIT_CODE -ne 0 ]; then
             echo "Version verification failed!"
             exit 1
           fi
+          
+          NEW_VERSION=$(tail -n 1 verification_output.log)
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           
           # Extract release notes for the body
@@ -56,8 +63,14 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add package.json src-tauri/tauri.conf.json
-          git commit -m "chore: bump version to $NEW_VERSION [skip ci]"
-          git push
+          
+          # Only commit if there are changes
+          if ! git diff --cached --exit-code; then
+            git commit -m "chore: bump version to $NEW_VERSION [skip ci]"
+            git push
+          else
+            echo "Version already bumped, skipping commit."
+          fi
 
   build:
     needs: prepare
