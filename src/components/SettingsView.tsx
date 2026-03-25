@@ -305,16 +305,21 @@ export function SettingsView() {
                 </CardHeader>
                 <CardContent className="pt-8">
                   <div className="flex flex-col items-center justify-center py-6 space-y-6 border-b border-border/50 pb-8">
-                    <div className="flex items-center gap-12 text-center">
+                    <div className="flex items-center gap-8 md:gap-12 text-center">
                       <div className="space-y-1">
                         <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Current Version</p>
-                        <p className="text-2xl font-mono font-bold">1.0.9</p>
+                        <p className="text-2xl font-mono font-bold">{appVersion.version.replace(/^v/, "")}</p>
                       </div>
-                      <ArrowRight className="text-muted-foreground/30" />
-                      <div className="space-y-1">
-                        <p className="text-[10px] uppercase font-bold text-primary tracking-widest">Newest Version</p>
-                        <p className="text-2xl font-mono font-bold">{update?.version || "1.0.9"}</p>
-                      </div>
+
+                      {status === "available" && (
+                        <>
+                          <ArrowRight className="text-muted-foreground/30" />
+                          <div className="space-y-1">
+                            <p className="text-[10px] uppercase font-bold text-primary tracking-widest">Newest Version</p>
+                            <p className="text-2xl font-mono font-bold">{update?.version?.replace(/^v/, "")}</p>
+                          </div>
+                        </>
+                      )}
                     </div>
                     
                     <div className="w-full max-w-sm space-y-4">

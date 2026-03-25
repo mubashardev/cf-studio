@@ -31,16 +31,36 @@ export function useUpdater() {
       let isActuallyNewer = false;
       let latestChangelog = null;
 
-      if (response.ok) {
-        const data = await response.json();
-        latestChangelog = data[0];
-        const currentV = appVersion.version.replace(/^v/, "");
-        const latestV = latestChangelog.version.replace(/^v/, "");
-        
-        if (latestChangelog && latestV !== currentV) {
-          isActuallyNewer = true;
+        if (response.ok) {
+          const data = await response.json();
+          latestChangelog = data[0];
+          
+          if (latestChangelog) {
+            const currentV = appVersion.version.replace(/^v/, "");
+            const latestV = latestChangelog.version.replace(/^v/, "");
+            
+            const vToArr = (v: string) => v.split('.').map(n => parseInt(n || "0"));
+            const currentArr = vToArr(currentV);
+            const latestArr = vToArr(latestV);
+            
+            for (let i = 0; i < 3; i++) {
+              if (latestArr[i] > currentArr[i]) {
+                isActuallyNewer = true;
+                break;
+              }
+              if (latestArr[i] < currentArr[i]) break;
+            }
+
+            // Even if not newer, store it as the 'latest' version we know about
+            if (!isActuallyNewer) {
+              setUpdate({
+                version: latestChangelog.version,
+                body: latestChangelog.features.join("\n"),
+                date: latestChangelog.date || ""
+              } as any);
+            }
+          }
         }
-      }
 
       // 2. Try native check to get the Update object for downloading (requires valid manifest)
       let manifest: Update | null = null;
