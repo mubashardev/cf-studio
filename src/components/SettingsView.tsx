@@ -378,7 +378,7 @@ export function SettingsView() {
                           </div>
                         ) : nextChangelog ? (
                           <div className="space-y-4">
-                            {nextChangelog.features.map((f, i) => (
+                            {[...(nextChangelog.features || []), ...(nextChangelog.fixes || [])].map((f, i) => (
                               <div key={i} className="flex gap-3 text-sm">
                                 <span className="text-primary font-bold opacity-50 select-none">•</span>
                                 <span>{f}</span>
@@ -387,7 +387,7 @@ export function SettingsView() {
                           </div>
                         ) : (
                           <div className="space-y-4">
-                            {currentChangelog?.features.map((f, i) => (
+                            {[...(currentChangelog?.features || []), ...(currentChangelog?.fixes || [])].map((f, i) => (
                               <div key={i} className="flex gap-3 text-sm">
                                 <span className="text-primary font-bold opacity-50 select-none">•</span>
                                 <span>{f}</span>

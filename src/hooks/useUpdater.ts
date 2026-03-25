@@ -55,7 +55,10 @@ export function useUpdater() {
             if (!isActuallyNewer) {
               setUpdate({
                 version: latestChangelog.version,
-                body: latestChangelog.features.join("\n"),
+                body: [
+                  ...(latestChangelog.features || []),
+                  ...(latestChangelog.fixes || [])
+                ].join("\n"),
                 date: latestChangelog.date || ""
               } as any);
             }
@@ -81,7 +84,10 @@ export function useUpdater() {
         setStatus("available");
         setUpdate({
           version: latestChangelog.version,
-          body: latestChangelog.features.join("\n"),
+          body: [
+            ...(latestChangelog.features || []),
+            ...(latestChangelog.fixes || [])
+          ].join("\n"),
           date: latestChangelog.date || "",
           isManualDetection: true,
           installCommand: "curl -fsSL https://install.cfstudio.dev | bash"
