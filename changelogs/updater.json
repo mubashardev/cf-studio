@@ -1,0 +1,23 @@
+{
+  "version": "v1.1.1",
+  "notes": "Minor bug fixes",
+  "pub_date": "2026-03-26T00:00:00Z",
+  "platforms": {
+    "darwin-aarch64": {
+      "signature": "",
+      "url": "https://github.com/mubashardev/cf-studio/releases/download/v1.1.1/CF_Studio_1.1.1_aarch64.dmg"
+    },
+    "darwin-x86_64": {
+      "signature": "",
+      "url": "https://github.com/mubashardev/cf-studio/releases/download/v1.1.1/CF_Studio_1.1.1_x64.dmg"
+    },
+    "linux-x86_64": {
+      "signature": "",
+      "url": "https://github.com/mubashardev/cf-studio/releases/download/v1.1.1/cf-studio_1.1.1_amd64.AppImage.tar.gz"
+    },
+    "windows-x86_64": {
+      "signature": "",
+      "url": "https://github.com/mubashardev/cf-studio/releases/download/v1.1.1/CF_Studio_1.1.1_x64_en-US.msi.zip"
+    }
+  }
+}

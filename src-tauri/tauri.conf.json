@@ -39,7 +39,7 @@
     "updater": {
       "active": true,
       "endpoints": [
-        "https://raw.githubusercontent.com/mubashardev/cf-studio/main/changelogs/changelogs.json"
+        "https://raw.githubusercontent.com/mubashardev/cf-studio/main/changelogs/updater.json"
       ],
       "dialog": false,
       "pubkey": ""
