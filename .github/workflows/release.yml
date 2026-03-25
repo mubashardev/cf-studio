@@ -19,10 +19,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version: lts/*
+          bun-version: latest
 
       - name: Verify Release Version
         id: verify_version
@@ -86,11 +86,10 @@ jobs:
         with:
           ref: main # Pull the latest changes (including the version bump)
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version: lts/*
-          cache: 'npm'
+          bun-version: latest
 
       - name: Install Linux dependencies
         if: matrix.platform == 'ubuntu-latest'
@@ -99,7 +98,7 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
 
       - name: Install dependencies
-        run: npm install
+        run: bun install
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
