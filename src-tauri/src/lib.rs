@@ -55,6 +55,8 @@ fn greet(name: &str) -> String {
 // ── Tauri App Entry Point ──────────────────────────────────────────────────────
 
 
+use std::process::Command;
+
 #[tauri::command]
 async fn download_update_binary(
     app: tauri::AppHandle,
@@ -98,13 +100,13 @@ async fn download_update_binary(
     // --- NEW: Automatically launch the installer from Rust ---
     #[cfg(target_os = "macos")]
     {
-        let _ = std::process::Command::new("open")
+        let _ = Command::new("open")
             .arg(&dest_path)
             .spawn();
     }
     #[cfg(target_os = "windows")]
     {
-        let _ = std::process::Command::new("cmd")
+        let _ = Command::new("cmd")
             .args(["/C", "start", ""])
             .arg(&dest_path)
             .spawn();
@@ -121,7 +123,7 @@ fn fix_mac_quarantine() -> Result<(), String> {
         let status = Command::new("xattr")
             .args(["-cr", "/Applications/CF Studio.app"])
             .status()
-            .map_err(|e| e.to_string())?;
+            .map_err(|e: std::io::Error| e.to_string())?;
         
         if !status.success() {
             return Err("Failed to clear xattr".to_string());
