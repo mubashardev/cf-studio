@@ -62,6 +62,7 @@ jobs:
               echo ""
             fi
 
+            echo "---"
             echo "### Quick Install"
             echo ""
             echo "**For macOS/Linux (Bash Terminal):**"
@@ -130,7 +131,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [macos-latest, ubuntu-latest, windows-latest]
+        include:
+          - platform: macos-latest
+            target: aarch64-apple-darwin
+            arch_name: apple_silicon
+          - platform: macos-latest
+            target: x86_64-apple-darwin
+            arch_name: intel_chip
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+            arch_name: windows_x64
+          - platform: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            arch_name: linux_x64
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -156,9 +169,11 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
 
       - name: Build Tauri App
-        run: bun tauri build
+        run: bun tauri build --target ${{ matrix.target }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -166,36 +181,27 @@ jobs:
         shell: bash
         run: |
           VERSION=${{ needs.prepare.outputs.new_version }}
+          ARCH=${{ matrix.arch_name }}
+          mkdir -p dist/artifacts
           
-          if [ "${{ matrix.platform }}" == "windows-latest" ]; then
-            # Windows NSIS
-            DIR="src-tauri/target/release/bundle/nsis"
-            [ -d "$DIR" ] && mv "$DIR"/*.exe "$DIR/CF-Studio-$VERSION-windows_x64.exe" || true
-          elif [ "${{ matrix.platform }}" == "macos-latest" ]; then
-            # macOS DMG
-            DIR="src-tauri/target/release/bundle/dmg"
-            if [ -d "$DIR" ]; then
-                # Create copies for both silicon and intel to match the table
-                FILE=$(find "$DIR" -name "*.dmg" | head -n 1)
-                cp "$FILE" "$DIR/CF-Studio-$VERSION-apple_silicon.dmg"
-                mv "$FILE" "$DIR/CF-Studio-$VERSION-intel_chip.dmg"
-            fi
-          elif [ "${{ matrix.platform }}" == "ubuntu-latest" ]; then
-            # Linux DEB and AppImage
-            DEB_DIR="src-tauri/target/release/bundle/deb"
-            [ -d "$DEB_DIR" ] && mv "$DEB_DIR"/*.deb "$DEB_DIR/CF-Studio-$VERSION-linux_x64.deb" || true
-            
-            APP_DIR="src-tauri/target/release/bundle/appimage"
-            [ -d "$APP_DIR" ] && mv "$APP_DIR"/*.AppImage "$APP_DIR/CF-Studio-$VERSION-linux_x64.AppImage" || true
-          fi
+          # Find and rename bundles using exact names from the table
+          find src-tauri/target/${{ matrix.target }}/release/bundle -name "*.dmg" -exec cp {} "dist/artifacts/CF-Studio-$VERSION-$ARCH.dmg" \;
+          find src-tauri/target/${{ matrix.target }}/release/bundle -name "*.exe" -exec cp {} "dist/artifacts/CF-Studio-$VERSION-$ARCH.exe" \;
+          find src-tauri/target/${{ matrix.target }}/release/bundle -name "*.deb" -exec cp {} "dist/artifacts/CF-Studio-$VERSION-$ARCH.deb" \;
+          find src-tauri/target/${{ matrix.target }}/release/bundle -name "*.AppImage" -exec cp {} "dist/artifacts/CF-Studio-$VERSION-$ARCH.AppImage" \;
+          find src-tauri/target/${{ matrix.target }}/release/bundle -name "*.rpm" -exec cp {} "dist/artifacts/CF-Studio-$VERSION-$ARCH.rpm" \;
+          
+          # Include .sig files for the updater if they exist
+          find src-tauri/target/${{ matrix.target }}/release/bundle -name "*.sig" -exec cp {} "dist/artifacts/" \;
 
       - name: Build and Release
-        uses: tauri-apps/tauri-action@v0
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.prepare.outputs.new_version }}
+          name: "CF Studio v${{ needs.prepare.outputs.new_version }}"
+          body: ${{ needs.prepare.outputs.release_body }}
+          draft: false
+          prerelease: false
+          files: dist/artifacts/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tagName: v${{ needs.prepare.outputs.new_version }}
-          releaseName: "v${{ needs.prepare.outputs.new_version }}"
-          releaseBody: ${{ needs.prepare.outputs.release_body }}
-          releaseDraft: false
-          prerelease: false
