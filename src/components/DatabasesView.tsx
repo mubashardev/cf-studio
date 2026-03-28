@@ -266,7 +266,6 @@ interface DatabaseListProps {
 function DatabaseList({ onSelect }: DatabaseListProps) {
   const { state, refresh } = useD1Databases();
   const activeAccount = useAppStore((s) => s.activeAccount);
-  const isProBuild = useAppStore((s) => s.isProBuild);
   const enableD1History = useAppStore((s) => s.enableD1History);
   const isLoading = state.status === "loading" || state.status === "idle";
   const [hasProHistory, setHasProHistory] = useState(false);
