@@ -4,7 +4,7 @@
 // Clicking a row drills into DatabaseExplorer for schema inspection.
 
 import { useState } from "react";
-import { RefreshCw, Database, Terminal, AlertCircle, Loader2, HardDrive, ChevronRight } from "lucide-react";
+import { RefreshCw, Database, Terminal, AlertCircle, Loader2, HardDrive, ChevronRight, History } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -20,6 +20,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { open as openUrl } from "@tauri-apps/plugin-shell";
 import { useD1Databases, type D1Database, invokeCloudflare } from "@/hooks/useCloudflare";
 import { DatabaseExplorer } from "@/components/DatabaseExplorer";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -275,16 +276,54 @@ function DatabaseList({ onSelect }: DatabaseListProps) {
             D1 databases attached to your Cloudflare account
           </p>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={refresh}
-          disabled={isLoading}
-          aria-label="Refresh databases"
-          className="text-muted-foreground hover:text-foreground"
-        >
-          <RefreshCw size={14} strokeWidth={2} className={cn(isLoading && "animate-spin")} />
-        </Button>
+        <div className="flex items-center gap-1.5">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => {
+                console.log("Opening history window...");
+                const webview = new WebviewWindow("history", {
+                    url: "index.html",
+                    title: "Query History Dashboard",
+                    width: 1000,
+                    height: 700,
+                    minWidth: 600,
+                    minHeight: 400,
+                });
+                
+                webview.once("tauri://created", () => {
+                   console.log("History window created successfully");
+                   webview.show();
+                   webview.setFocus();
+                });
+
+                webview.once("tauri://error", (e) => {
+                   console.error("Failed to create history window:", e);
+                   // If it already exists, just show it
+                   WebviewWindow.getByLabel("history").then(win => {
+                       if (win) {
+                           win.show();
+                           win.setFocus();
+                       }
+                   });
+                });
+            }}
+            title="Query History"
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <History size={15} strokeWidth={2} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={refresh}
+            disabled={isLoading}
+            aria-label="Refresh databases"
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <RefreshCw size={14} strokeWidth={2} className={cn(isLoading && "animate-spin")} />
+          </Button>
+        </div>
       </div>
 
       {/* Content */}

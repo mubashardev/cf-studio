@@ -7,10 +7,12 @@ pub mod r2;
 pub mod r2_pro;
 pub mod setup;
 pub mod user;
+pub mod history;
 
 use cloudflare_auth::{read_credentials, AuthError, CloudflareCredentials};
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use tauri::Manager;
 use std::collections::HashMap;
 use tokio_util::sync::CancellationToken;
 
@@ -46,14 +48,13 @@ use std::process::Command;
 #[tauri::command]
 async fn download_update_binary(
     app: tauri::AppHandle,
-    window: tauri::Window,
+    _window: tauri::Window,
     url: String,
     filename: String,
 ) -> Result<String, String> {
     use futures_util::StreamExt;
     use std::io::Write;
     use tauri::{Emitter, Manager};
-    use tauri_plugin_fs::FsExt;
 
     let client = reqwest::Client::new();
     let response = client.get(url).send().await.map_err(|e| e.to_string())?;
@@ -130,6 +131,10 @@ pub fn run() {
         .manage(UploadState::default())
         .setup(|app| {
             cloudflare_auth::start_wrangler_watcher(app.handle().clone());
+            match history::init_db(app.handle()) {
+                Ok(db_state) => { app.manage(db_state); },
+                Err(e) => eprintln!("Failed to initialize query history database: {}", e),
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -141,6 +146,7 @@ pub fn run() {
             cloudflare_auth::fetch_cloudflare_accounts,
             d1::fetch_d1_databases,
             d1::execute_d1_query,
+            d1::analyze_d1_query,
             user::fetch_user_profile,
             // ── R2 Public ──
             r2::fetch_r2_buckets,
@@ -163,6 +169,10 @@ pub fn run() {
             setup::check_dependencies,
             setup::install_dependencies,
             download_update_binary,
+            history::save_query_history,
+            history::get_paginated_history,
+            history::get_global_stats,
+            history::clear_query_history,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -29,9 +29,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { AlertTriangle, Info, List, ArrowRight, Expand, BookOpen, X, Check, Table2, Trash2, Undo2 } from "lucide-react";
-import type { D1Column, D1TableSchema, D1ForeignKey, D1QueryResult } from "@/hooks/useCloudflare";
-import { invokeCloudflare } from "@/hooks/useCloudflare";
+import { type D1Column, D1TableSchema, D1ForeignKey, D1QueryResult, invokeCloudflare } from "@/hooks/useCloudflare";
 import { useToast } from "@/components/ui/use-toast";
+import { useAppStore } from "@/store/useAppStore";
+import { useD1Tracker } from "@/hooks/useD1Tracker";
 
 type DraftForeignKey = D1ForeignKey & {
   isNew: boolean;
@@ -144,6 +145,8 @@ export function EditColumnDialog({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [changesList, setChangesList] = useState<string[]>([]);
   const [isApplying, setIsApplying] = useState(false);
+  const activeAccount = useAppStore(state => state.activeAccount);
+  const { executeTrackedQuery } = useD1Tracker();
 
   useEffect(() => {
     if (column && open) {
@@ -215,16 +218,28 @@ export function EditColumnDialog({
     if (!column) return;
     setIsApplying(true);
     try {
+      if (!activeAccount?.id) throw new Error("No active account selected.");
+      
       const statements = generateTableRecreationSQL(tableName, tableColumns, column.name, draftColumn, draftColumn.draftRelations.filter(fk => !fk.isDeleted));
       
       for (const statement of statements) {
         if (!statement.trim()) continue;
-        const results = await invokeCloudflare<D1QueryResult[]>("execute_d1_query", {
-          accountId: "",
-          databaseId,
-          sqlQuery: statement,
-          params: null
-        });
+        const results = await executeTrackedQuery(
+          {
+            accountId: activeAccount.id,
+            databaseId,
+            query: statement,
+            source: "UI_ACTION",
+            tableName: tableName,
+          },
+          () =>
+            invokeCloudflare<D1QueryResult[]>("execute_d1_query", {
+              accountId: activeAccount.id,
+              databaseId,
+              sqlQuery: statement,
+              params: null
+            })
+        );
         
         const failed = results.find(r => !r.success);
         if (failed) {

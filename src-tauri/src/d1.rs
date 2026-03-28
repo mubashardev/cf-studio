@@ -62,6 +62,14 @@ pub struct D1Database {
     pub tables: Option<Vec<D1TableSummary>>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct D1AnalysisResult {
+    pub is_full_scan: bool,
+    pub cost_tier: String, // "High", "Medium", "Low"
+    pub scanned_tables: Vec<String>,
+    pub raw_plan: Vec<Value>,
+}
+
 
 
 // ── Helper ─────────────────────────────────────────────────────────────────────
@@ -317,6 +325,100 @@ pub async fn execute_d1_query(
         params,
     )
     .await
+}
+
+/// Analyze a SQL query using EXPLAIN QUERY PLAN to detect full table scans.
+#[tauri::command]
+pub async fn analyze_d1_query(
+    account_id: String,
+    database_id: String,
+    sql_query: String,
+) -> Result<D1AnalysisResult, D1Error> {
+    let creds = tokio::task::spawn_blocking(read_credentials)
+        .await
+        .unwrap_or_else(|e| {
+            Err(AuthError::Io(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                e.to_string(),
+            )))
+        })?;
+
+    let client = CloudflareClient::new(&creds.oauth_token)?;
+    let resolved_account_id = if account_id.is_empty() {
+        match creds.account_id {
+            Some(id) => id,
+            None => resolve_account_id(&client).await?,
+        }
+    } else {
+        account_id
+    };
+
+    let trimmed = sql_query.trim();
+    let is_select = trimmed.to_uppercase().starts_with("SELECT");
+    
+    let explain_query = if is_select {
+        format!("EXPLAIN QUERY PLAN {}", trimmed)
+    } else {
+        trimmed.to_string()
+    };
+
+    let results = execute_query(
+        &client,
+        &resolved_account_id,
+        &database_id,
+        &explain_query,
+        None,
+    )
+    .await?;
+
+    // D1 returns multiple results for multiple statements, we usually analyze the first one.
+    let plan_rows = results.first()
+        .map(|r| r.results.clone())
+        .unwrap_or_default();
+
+    let mut is_full_scan = false;
+    let mut cost_tier = "Low".to_string();
+    let mut scanned_tables = Vec::new();
+
+    for row in &plan_rows {
+        let detail = row.get("detail")
+            .and_then(|v| v.as_str())
+            .or_else(|| row.get("description").and_then(|v| v.as_str()))
+            .unwrap_or("");
+
+        let detail_upper = detail.to_uppercase();
+
+        if detail_upper.contains("SCAN TABLE") {
+            is_full_scan = true;
+            cost_tier = "High".to_string();
+        } else if detail_upper.contains("USING COVERING INDEX") && cost_tier != "High" {
+            cost_tier = "Medium".to_string();
+        } else if (detail_upper.contains("USING PRIMARY KEY") || detail_upper.contains("USING ROWID")) && cost_tier == "Low" {
+            cost_tier = "Low".to_string();
+        }
+
+        // Extract table name from "SCAN TABLE <name>" or "SEARCH TABLE <name>"
+        if detail_upper.contains("SCAN TABLE") || detail_upper.contains("SEARCH TABLE") {
+            let parts: Vec<&str> = detail.split_whitespace().collect();
+            // Typically: "SCAN TABLE table_name" or "SEARCH TABLE table_name USING ..."
+            // We look for the part after "TABLE"
+            if let Some(pos) = parts.iter().position(|&p| p.to_uppercase() == "TABLE") {
+                if let Some(table_name) = parts.get(pos + 1) {
+                    let clean_name = table_name.trim_matches(|c| c == '(' || c == ')').to_string();
+                    if !scanned_tables.contains(&clean_name) {
+                        scanned_tables.push(clean_name);
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(D1AnalysisResult {
+        is_full_scan,
+        cost_tier,
+        scanned_tables,
+        raw_plan: plan_rows,
+    })
 }
 
 

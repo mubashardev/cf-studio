@@ -4,10 +4,10 @@
 // Runs arbitrary SQL via the `execute_d1_query` Tauri command and renders
 // results as a dynamic table, mutation summary, or error alert.
 
-import { useState, useRef, useCallback, useMemo, type KeyboardEvent } from "react";
+import { useState, useRef, useCallback, useMemo, useEffect, type KeyboardEvent } from "react";
 import {
   Play, Loader2, AlertCircle, CheckCircle2,
-  RotateCcw, Sparkles, ChevronLeft, ChevronRight,
+  RotateCcw, Sparkles, ChevronLeft, ChevronRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -24,8 +24,10 @@ import {
   TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { type D1QueryResult, invokeCloudflare, type D1TableSchema } from "@/hooks/useCloudflare";
+import { type D1QueryResult, type D1TableSchema } from "@/hooks/useCloudflare";
 import { useAppStore } from "@/store/useAppStore";
+import { useQueryExecutor } from "@/hooks/useQueryExecutor";
+import { IntelligencePanel } from "@/components/IntelligencePanel";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -177,6 +179,12 @@ function ResultTable({
   );
 }
 
+const templates = [
+  { label: "Select All", sql: "SELECT * FROM your_table LIMIT 50;" },
+  { label: "List Tables", sql: "SELECT name FROM sqlite_master WHERE type='table';" },
+  { label: "Table Schema", sql: "PRAGMA table_info(your_table);" },
+];
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
 interface QueryEditorProps {
@@ -198,13 +206,40 @@ export function QueryEditor({ databaseId, tables }: QueryEditorProps) {
   const [sql, setSql] = useState(`SELECT * FROM ${dynamicTemplateData.table} LIMIT 50;`);
   const [status, setStatus] = useState<QueryStatus>({ kind: "idle" });
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const activeAccount = useAppStore(state => state.activeAccount);
+  const executor = useQueryExecutor(databaseId);
 
-  const templates = useMemo(() => [
-    { label: "SELECT *",   sql: `SELECT * FROM ${dynamicTemplateData.table} LIMIT 50;` },
-    { label: "COUNT",      sql: `SELECT COUNT(*) AS total FROM ${dynamicTemplateData.table};` },
-    { label: "INSERT",     sql: `INSERT INTO ${dynamicTemplateData.table} (${dynamicTemplateData.col1}, ${dynamicTemplateData.col2}) VALUES ('value1', 'value2');` },
-    { label: "PRAGMA",     sql: "PRAGMA table_list;" },
-  ], [dynamicTemplateData]);
+  const handleQueryResults = useCallback((results: D1QueryResult[]) => {
+    const first = results[0];
+    if (!first) {
+      setStatus({ kind: "ddl" });
+      return;
+    }
+
+    const rows = first.results ?? [];
+    const changes = first.meta?.changes ?? 0;
+    const duration = first.meta?.duration;
+    const rowsRead = first.meta?.rows_read;
+
+    if (rows.length > 0) {
+      setStatus({
+        kind: "select",
+        columns: Object.keys(rows[0]),
+        rows: rows as Record<string, unknown>[],
+        duration,
+        rowsRead,
+      });
+    } else if (changes > 0) {
+      setStatus({
+        kind: "mutation",
+        changes,
+        lastRowId: first.meta?.last_row_id ?? undefined,
+        duration,
+      });
+    } else {
+      setStatus({ kind: "ddl", duration });
+    }
+  }, [sql, databaseId, activeAccount?.id]);
 
   const runQuery = useCallback(async () => {
     const query = sql.trim();
@@ -212,49 +247,65 @@ export function QueryEditor({ databaseId, tables }: QueryEditorProps) {
     setStatus({ kind: "running" });
 
     try {
-      const results = await invokeCloudflare<D1QueryResult[]>("execute_d1_query", {
-        accountId: "",         // Rust auto-resolves via GET /accounts
-        databaseId,
-        sqlQuery: query,
-        params: null,
-      });
-
-      const first = results[0];
-      if (!first) {
-        setStatus({ kind: "ddl" });
+      const results = await executor.execute(sql);
+      if (!results) {
+        // Confirmation was required, reset status to idle so button is clickable again
+        setStatus({ kind: "idle" });
         return;
       }
-
-      const rows = first.results ?? [];
-      const changes = first.meta?.changes ?? 0;
-      const duration = first.meta?.duration;
-      const rowsRead = first.meta?.rows_read;
-
-      if (rows.length > 0) {
-        // SELECT — has actual row data
-        setStatus({
-          kind: "select",
-          columns: Object.keys(rows[0]),
-          rows: rows as Record<string, unknown>[],
-          duration,
-          rowsRead,
-        });
-      } else if (changes > 0) {
-        // INSERT / UPDATE / DELETE
-        setStatus({
-          kind: "mutation",
-          changes,
-          lastRowId: first.meta?.last_row_id ?? undefined,
-          duration,
-        });
-      } else {
-        // DDL or empty SELECT
-        setStatus({ kind: "ddl", duration });
+      handleQueryResults(results);
+      if (!executor.showSafeModeModal) {
+        // If results IS null and modal is NOT shown, it means it's idle or still analyzing
+        // which we handle via hook state if we want to show "Analyzing...", 
+        // but for now we just don't set status back to idle yet.
       }
     } catch (err) {
       setStatus({ kind: "error", message: String(err) });
     }
-  }, [sql, databaseId]);
+  }, [sql, executor, handleQueryResults, databaseId]);
+
+  const handleConfirmDestructiveQuery = async () => {
+    setStatus({ kind: "running" });
+    try {
+      const results = await executor.confirmExecution();
+      if (results) {
+        handleQueryResults(results);
+      }
+    } catch (err) {
+      setStatus({ kind: "error", message: String(err) });
+    }
+  };
+
+  // Real-time Validation (Debounced)
+  useEffect(() => {
+    const trimmedSql = sql.trim();
+    
+    // Reset confirmation state if user changes the query significantly
+    if (executor.requiresConfirmation && !executor.checkMutation(trimmedSql) && !executor.checkBlindSelect(trimmedSql)) {
+      executor.cancelConfirmation();
+    }
+
+    const timer = setTimeout(() => {
+      if (!trimmedSql) {
+        executor.setValidationError(null);
+        return;
+      }
+      
+      const tableName = executor.getTableNameFromSql(trimmedSql);
+      if (tableName && tables && tables.length > 0) {
+        const exists = tables.some(t => t.name.toLowerCase() === tableName.toLowerCase());
+        if (!exists) {
+          executor.setValidationError(`Table "${tableName}" not found in database.`);
+        } else {
+          executor.setValidationError(null);
+        }
+      } else {
+        executor.setValidationError(null);
+      }
+    }, 150); // Faster debounce for instant feel
+
+    return () => clearTimeout(timer);
+  }, [sql, tables, executor.checkMutation, executor.getTableNameFromSql, executor.setValidationError, executor.requiresConfirmation, executor.cancelConfirmation]);
 
   // Cmd/Ctrl + Enter submits
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -286,7 +337,7 @@ export function QueryEditor({ databaseId, tables }: QueryEditorProps) {
             ))}
           </div>
 
-          {/* Action buttons */}
+
           <Button
             variant="ghost" size="icon"
             className="h-6 w-6 text-muted-foreground hover:text-foreground shrink-0"
@@ -297,16 +348,30 @@ export function QueryEditor({ databaseId, tables }: QueryEditorProps) {
           </Button>
 
           <Button
-            onClick={runQuery}
-            disabled={isRunning || !sql.trim()}
+            onClick={executor.requiresConfirmation ? handleConfirmDestructiveQuery : runQuery}
+            onDoubleClick={executor.requiresConfirmation ? handleConfirmDestructiveQuery : runQuery}
+            disabled={isRunning || executor.isAnalyzing || !sql.trim()}
             size="sm"
-            className="h-7 gap-1.5 text-xs font-medium shrink-0"
+            className={cn(
+              "h-7 gap-1.5 text-xs font-bold shrink-0 transition-all duration-300",
+              executor.requiresConfirmation 
+                ? "bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-[0_0_15px_rgba(239,68,68,0.4)] animate-pulse" 
+                : ""
+            )}
           >
-            {isRunning
+            {isRunning || executor.isAnalyzing
               ? <Loader2 size={12} className="animate-spin" />
-              : <Play size={12} strokeWidth={2.5} />}
-            {isRunning ? "Running…" : "Run"}
-            {!isRunning && (
+              : executor.requiresConfirmation 
+                ? <AlertCircle size={12} strokeWidth={3} />
+                : <Play size={12} strokeWidth={2.5} />}
+            {executor.isAnalyzing 
+              ? "Analyzing…" 
+              : isRunning 
+                ? "Running…" 
+                : executor.requiresConfirmation 
+                  ? "CONFIRM EXECUTION" 
+                  : "Run"}
+            {!isRunning && !executor.isAnalyzing && !executor.requiresConfirmation && (
               <kbd className="hidden sm:inline text-[9px] bg-primary-foreground/20 px-1 py-px rounded font-sans leading-none">
                 ⌘↵
               </kbd>
@@ -329,6 +394,25 @@ export function QueryEditor({ databaseId, tables }: QueryEditorProps) {
             "border-0 ring-0"
           )}
           rows={5}
+        />
+
+        {/* Intelligence Panel */}
+        <IntelligencePanel 
+          analysis={executor.analysis}
+          requiresConfirmation={executor.requiresConfirmation}
+          isMutationPreview={executor.checkMutation(sql) && !executor.requiresConfirmation}
+          isBlindSelectPreview={executor.checkBlindSelect(sql) && !executor.requiresConfirmation}
+          previewTableName={executor.getTableNameFromSql(sql)}
+          validationError={executor.validationError}
+          onCancelConfirmation={executor.cancelConfirmation}
+          onApplyFix={(fixSql) => {
+            setSql(prev => {
+              const trimmed = prev.trim();
+              if (!trimmed) return fixSql;
+              const suffix = trimmed.endsWith(";") ? "" : ";";
+              return `${trimmed}${suffix}\n\n${fixSql}`;
+            });
+          }}
         />
       </div>
 
@@ -412,6 +496,7 @@ export function QueryEditor({ databaseId, tables }: QueryEditorProps) {
               <span className="text-xs text-muted-foreground">
                 <span className="text-foreground font-medium tabular-nums">{status.rows.length}</span> row{status.rows.length !== 1 ? "s" : ""} returned
               </span>
+
               {status.duration != null && (
                 <Badge variant="secondary" className="font-mono text-[10px] ml-auto">
                   {status.duration.toFixed(2)} ms
@@ -429,6 +514,7 @@ export function QueryEditor({ databaseId, tables }: QueryEditorProps) {
           </div>
         )}
       </div>
+
     </div>
   );
 }

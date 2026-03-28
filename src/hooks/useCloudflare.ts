@@ -20,6 +20,7 @@ import {
   CACHE_TTL_MS,
 } from "@/store/useAppStore";
 import { type R2Bucket, fetchR2Buckets } from "@/lib/r2";
+import { useD1Tracker } from "@/hooks/useD1Tracker";
 
 // ── API Interceptor ────────────────────────────────────────────────────────────
 
@@ -60,6 +61,7 @@ export async function invokeCloudflare<T>(cmd: string, args?: Record<string, unk
     throw err;
   }
 }
+
 
 
 // ── Types mirroring Rust structs ───────────────────────────────────────────────
@@ -260,6 +262,7 @@ const SCHEMA_SQL =
  */
 export function useD1Schema(databaseId: string) {
   const cacheKey = `schema_${databaseId}`;
+  const { executeTrackedQuery } = useD1Tracker();
   const [state, setState] = useState<AsyncState<D1TableSchema[]>>(() => {
     const cached = useAppStore.getState().queryCache[cacheKey];
     if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
@@ -304,12 +307,22 @@ export function useD1Schema(databaseId: string) {
         accountId = resolvedAccountId;
       }
 
-      const queryResults = await invokeCloudflare<D1QueryResult[]>("execute_d1_query", {
-        accountId,
-        databaseId,
-        sqlQuery: SCHEMA_SQL,
-        params: null,
-      });
+      const queryResults = await executeTrackedQuery(
+        {
+          accountId,
+          databaseId,
+          query: SCHEMA_SQL,
+          source: "UI_ACTION",
+          tableName: "schema",
+        },
+        () =>
+          invokeCloudflare<D1QueryResult[]>("execute_d1_query", {
+            accountId,
+            databaseId,
+            sqlQuery: SCHEMA_SQL,
+            params: null,
+          })
+      );
 
       // Look up column counts from the cached database list
       const allDb = useAppStore.getState().databases;
@@ -397,6 +410,7 @@ export function useD1TableData(
   sortAsc?: boolean
 ) {
   const cacheKey = `data_${databaseId}_${tableName}_${offset}_${limit}_${sortCol}_${sortAsc}`;
+  const { executeTrackedQuery } = useD1Tracker();
   const [state, setState] = useState<AsyncState<D1TableData>>(() => {
     const cached = useAppStore.getState().queryCache[cacheKey];
     if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
@@ -425,12 +439,22 @@ export function useD1TableData(
       }
       const sql = `PRAGMA table_info("${tableName}"); PRAGMA foreign_key_list("${tableName}"); SELECT * FROM "${tableName}"${orderClause} LIMIT ${limit} OFFSET ${offset};`;
 
-      const queryResults = await invokeCloudflare<D1QueryResult[]>("execute_d1_query", {
-        accountId,
-        databaseId,
-        sqlQuery: sql,
-        params: null,
-      });
+      const queryResults = await executeTrackedQuery(
+        {
+          accountId,
+          databaseId,
+          query: sql,
+          source: "UI_ACTION",
+          tableName: tableName,
+        },
+        () =>
+          invokeCloudflare<D1QueryResult[]>("execute_d1_query", {
+            accountId,
+            databaseId,
+            sqlQuery: sql,
+            params: null,
+          })
+      );
 
       const pragmaRows = queryResults[0]?.success ? queryResults[0].results : [];
       const fkRows = queryResults[1]?.success ? queryResults[1].results : [];
@@ -486,6 +510,7 @@ export function useD1TableData(
  */
 export function useD1Indexes(databaseId: string) {
   const cacheKey = `indexes_${databaseId}`;
+  const { executeTrackedQuery } = useD1Tracker();
   const [state, setState] = useState<AsyncState<D1Index[]>>(() => {
     const cached = useAppStore.getState().queryCache[cacheKey];
     if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
@@ -510,12 +535,22 @@ export function useD1Indexes(databaseId: string) {
       const accountId = resolvedAccountId;
       const sql = "SELECT name, tbl_name as tableName, sql FROM sqlite_master WHERE type='index' AND name NOT LIKE 'sqlite_%' ORDER BY tbl_name, name;";
       
-      const results = await invokeCloudflare<D1QueryResult[]>("execute_d1_query", {
-        accountId,
-        databaseId,
-        sqlQuery: sql,
-        params: null,
-      });
+      const results = await executeTrackedQuery(
+        {
+          accountId,
+          databaseId,
+          query: sql,
+          source: "UI_ACTION",
+          tableName: "indexes",
+        },
+        () =>
+          invokeCloudflare<D1QueryResult[]>("execute_d1_query", {
+            accountId,
+            databaseId,
+            sqlQuery: sql,
+            params: null,
+          })
+      );
 
       const rows = results[0]?.results ?? [];
       const data: D1Index[] = rows.map(r => ({

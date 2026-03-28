@@ -29,6 +29,7 @@ tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-shell = "2"
+uuid = { version = "1", features = ["v4"] }
 
 # Serialization
 serde = { version = "1", features = ["derive"] }
@@ -48,6 +49,7 @@ chrono = "0.4"
 
 # Cross-platform home/config directory resolution
 dirs = "5"
+rusqlite = { version = "0.31", features = ["bundled"] }
 
 # Async runtime
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "process"] }

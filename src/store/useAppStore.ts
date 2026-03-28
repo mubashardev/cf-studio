@@ -84,6 +84,7 @@ interface AppState {
   // ── Session Cache (Volatile, not persisted) ──
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   queryCache: Record<string, { data: any; timestamp: number }>;
+  sessionId: string;
 
   // ── Actions ──
   setUserProfile: (profile: UserProfile | null) => void;
@@ -95,6 +96,8 @@ interface AppState {
   setShowTableColumnCounts: (show: boolean) => void;
   setAutoUpdate: (enabled: boolean) => void;
   setPrivacySettings: (settings: Partial<PrivacySettings>) => void;
+  setSessionId: (id: string) => void;
+  refreshSession: () => void;
   
   setUpdateStatus: (status: "idle" | "checking" | "available" | "downloading" | "up-to-date" | "error") => void;
   setUpdateData: (data: any | null) => void;
@@ -155,6 +158,7 @@ export const useAppStore = create<AppState>()(
       kvLastFetched: null,
       r2LastFetched: null,
       queryCache: {},
+      sessionId: crypto.randomUUID(),
 
       // ── Actions ──
       setUserProfile: (profile) => set({ userProfile: profile }),
@@ -166,6 +170,8 @@ export const useAppStore = create<AppState>()(
       setShowTableColumnCounts: (show) => set({ showTableColumnCounts: show }),
       setAutoUpdate: (enabled) => set({ autoUpdate: enabled }),
       setPrivacySettings: (settings) => set((s) => ({ privacySettings: { ...s.privacySettings, ...settings } })),
+      setSessionId: (id) => set({ sessionId: id }),
+      refreshSession: () => set({ sessionId: crypto.randomUUID() }),
       setUpdateStatus: (status) => set({ updateStatus: status }),
       setUpdateData: (data) => set({ updateData: data }),
       setDownloadProgress: (progress) => set({ downloadProgress: progress }),
