@@ -45,7 +45,13 @@ pub fn init_db(app: &AppHandle) -> Result<DbState, String> {
         );
         CREATE INDEX IF NOT EXISTS idx_qh_account   ON query_history(account_id);
         CREATE INDEX IF NOT EXISTS idx_qh_session   ON query_history(session_id);
-        CREATE INDEX IF NOT EXISTS idx_qh_timestamp ON query_history(timestamp DESC);"
+        CREATE INDEX IF NOT EXISTS idx_qh_timestamp ON query_history(timestamp DESC);
+        CREATE TABLE IF NOT EXISTS r2_workers (
+            bucket_name  TEXT PRIMARY KEY,
+            worker_url   TEXT NOT NULL,
+            auth_secret  TEXT NOT NULL,
+            last_used    DATETIME DEFAULT CURRENT_TIMESTAMP
+        );"
     ).map_err(|e| e.to_string())?;
 
     println!("Database initialized at: {:?}", db_path);

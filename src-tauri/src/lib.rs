@@ -4,7 +4,6 @@ pub mod cloudflare_auth;
 pub mod cloudflare_client;
 pub mod d1;
 pub mod r2;
-pub mod r2_pro;
 pub mod setup;
 pub mod user;
 pub mod db;
@@ -14,6 +13,12 @@ pub mod history_pro;
 
 #[path = "../../src/pro_modules/rust/domain_audit.rs"]
 pub mod domain_audit_pro;
+
+#[path = "../../src/pro_modules/rust/r2_pro.rs"]
+pub mod r2_pro;
+
+#[path = "../../src/pro_modules/rust/r2_worker_proxy.rs"]
+pub mod r2_worker_proxy;
 
 #[tauri::command]
 fn is_pro_enabled() -> bool {
