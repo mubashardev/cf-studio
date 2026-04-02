@@ -44,7 +44,9 @@ commands.allow = [
     "save_zone_token",
     "delete_zone_token",
     "has_zone_token",
-    "get_zone_performance_settings"
+    "get_zone_performance_settings",
+    "get_zone_dns_health",
+    "add_dns_record"
 ]
 
 [[permission]]

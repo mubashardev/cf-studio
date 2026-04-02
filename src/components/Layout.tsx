@@ -36,7 +36,9 @@ import { useRemoteConfig } from "@/pro_modules/frontend/useRemoteConfig";
 import { AuditZoneProvider, AuditTokenGate } from "@/pro_modules/frontend/AuditZoneContext";
 import { SecurityPosture } from "@/pro_modules/ui/audits/SecurityPosture";
 import { PerformancePosture } from "@/pro_modules/ui/audits/PerformancePosture";
+import { DnsEmailPosture } from "@/pro_modules/ui/audits/DnsEmailPosture";
 import { AuditPreferences } from "@/pro_modules/ui/audits/AuditPreferences";
+import { Overview } from "@/pro_modules/ui/audits/Overview";
 import { useMemo } from "react";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -382,21 +384,21 @@ function TitleBar({ collapsed, onToggle, title, onNavigate }: TitleBarProps) {
 }
 
 // ── Simple page router ────────────────────────────────────────────────────────
-function PageContent({ activeId }: { activeId: string }) {
+function PageContent({ activeId, onNavigate }: { activeId: string; onNavigate: (id: string) => void }) {
   if (activeId === "d1") return <DatabasesView />;
   if (activeId === "r2") return <R2BucketsView />;
   if (activeId === "settings") return <SettingsView />;
-  if (activeId === "audit-security") return <AuditTokenGate><SecurityPosture /></AuditTokenGate>;
-  if (activeId === "audit-performance") return <AuditTokenGate><PerformancePosture /></AuditTokenGate>;
+  if (activeId === "audit") return <Overview onNavigate={onNavigate} />;
+  if (activeId === "audit-security") return <SecurityPosture />;
+  if (activeId === "audit-performance") return <PerformancePosture />;
+  if (activeId === "audit-dns") return <DnsEmailPosture />;
   if (activeId === "audit-preferences") return <AuditPreferences />;
   
   if (activeId.startsWith("audit")) {
     return (
-      <AuditTokenGate>
-        <div className="flex flex-col items-center justify-center h-full text-center gap-2">
-          <p className="text-muted-foreground text-sm">Audit view coming soon</p>
-        </div>
-      </AuditTokenGate>
+      <div className="flex flex-col items-center justify-center h-full text-center gap-2">
+        <p className="text-muted-foreground text-sm">Audit view coming soon</p>
+      </div>
     );
   }
 
@@ -496,7 +498,7 @@ export function Layout() {
 
           {/* Content area */}
           <main className="flex-1 overflow-hidden p-6">
-            <PageContent activeId={activeId} />
+            <PageContent activeId={activeId} onNavigate={setActiveId} />
           </main>
         </div>
       </div>
