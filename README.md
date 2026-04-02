@@ -123,15 +123,37 @@ CF Studio includes high-tier features for comprehensive management:
 
 ## Roadmap
 
-- [x] Initial UI shell and OKLCH theme system
-- [x] Wrangler auto-authentication
-- [x] D1 database listing & data grid
-- [x] Interactive SQL query engine
-- [x] Visual Schema (ER Diagram)
-- [x] R2 Storage Explorer
-- [x] Bulk D1 data Export
-- [x] Interactive Index Management
-- [ ] KV namespace CRUD operations
+<a href="https://cfstudio.dev">CF Studio</a> is evolving rapidly. Here's what has been built and what's on the horizon.
+
+### Core Foundation
+- [x] **Native UI Shell**: High-performance desktop experience using Tauri v2.
+- [x] **Dynamic Theme System**: Full support for Dark/Light modes with OKLCH color spaces.
+- [x] **Zero-Config Auth**: Automatic detection of local `wrangler` sessions for instant access.
+- [x] **In-App Updater**: Native update delivery with real-time download progress.
+
+### Database (D1)
+- [x] **Interactive Data Grid**: Browse and edit table data with a spreadsheet-like experience.
+- [x] **Smart SQL Editor**: Context-aware autocomplete for table and column names.
+- [x] **Visual Schema**: Auto-generated ER Diagrams for complex database architectures.
+- [x] **Index Architect**: GUI for creating and managing SQL indexes with cost estimation.
+- [x] **Bulk Export**: Instant data extraction to multiple portable formats.
+
+### Storage (R2)
+- [x] **Object Explorer**: Seamlessly navigate through buckets and folders.
+- [x] **Streaming Uploads**: High-speed, multi-part uploads with real-time progress.
+- [x] **Bucket Orchestration**: Create, delete, and configure R2 buckets natively.
+
+### Audit & Optimization (Pro)
+- [x] **Security Posture Audit**: Automated check for SSL, WAF, and Firewall best practices.
+- [x] **Performance Benchmarking**: Insights into Brotli, HTTP/3, and Caching configurations.
+- [x] **DNS & Email Health**: Verification of SPF, DKIM, and DMARC records.
+- [x] **Vector PDF Reports**: Programmatic generation of professional audit reports.
+
+### _Future Horizons_
+- [ ] **KV Namespace CRUD**: Full management for Key-Value storage.
+- [ ] **Workers Metrics**: Real-time log streaming and CPU/Memory monitoring.
+- [ ] **Vectorize Integration**: Manage vector databases for AI/ML workloads.
+- [ ] **Local Simulation**: Integrated Miniflare support for local-first testing.
 
 ## Contributing
 
