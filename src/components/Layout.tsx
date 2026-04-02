@@ -33,7 +33,7 @@ import {
 } from "@/store/useAppStore";
 import { invokeCloudflare, useCloudflareAccounts } from "@/hooks/useCloudflare";
 import { useRemoteConfig } from "@/pro_modules/frontend/useRemoteConfig";
-import { AuditZoneProvider, AuditTokenGate } from "@/pro_modules/frontend/AuditZoneContext";
+import { AuditZoneProvider } from "@/pro_modules/frontend/AuditZoneContext";
 import { SecurityPosture } from "@/pro_modules/ui/audits/SecurityPosture";
 import { PerformancePosture } from "@/pro_modules/ui/audits/PerformancePosture";
 import { DnsEmailPosture } from "@/pro_modules/ui/audits/DnsEmailPosture";
@@ -465,6 +465,17 @@ export function Layout() {
     };
     setupListeners().then((unsubs) => { unlisteners = unsubs; });
     return () => { if (unlisteners) unlisteners(); };
+  }, []);
+
+  // Disable right-click context menu
+  useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+    };
+    document.addEventListener("contextmenu", handleContextMenu);
+    return () => {
+      document.removeEventListener("contextmenu", handleContextMenu);
+    };
   }, []);
 
   const currentNav = navGroups.flatMap((g) => g.items).find(
