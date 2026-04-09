@@ -80,10 +80,41 @@ Manage your database performance with interactive index management. Create and d
 
 ---
 
+### Audit & Optimization
+Comprehensive domain health analysis and one-click optimization reports.
+
+<div align="center">
+  <img src="screenshots/3. audit-overview.png" width="800" alt="Audit Overview Report" />
+  <p><em>Holistic domain health dashboard with automated scoring</em></p>
+</div>
+
+#### Domain Health Posture
+Deep-dive into your infrastructure with granular reports on security, performance, and email deliverability.
+
+<div align="center">
+  <img src="screenshots/3.1. audit-security-posture.png" width="260" />
+  <img src="screenshots/3.2. audit-performance.png" width="260" />
+  <img src="screenshots/3.3. audit-email-dns.png" width="260" />
+</div>
+
+- **Security Posture**: Automated check for SSL/TLS versions, WAF configurations, and HTTPS rewrites.
+- **Performance Benchmarking**: Insights into Brotli compression, HTTP/3, Early Hints, and Tiered Cache.
+- **DNS & Email Health**: Verification of SPF and DMARC records to prevent domain spoofing.
+
+#### Professional PDF Export
+Generate, view, and save professional audit reports locally. These vector-based PDFs are perfect for sharing with stakeholders or maintaining compliance logs.
+
+<div align="center">
+  <img src="screenshots/3.5. audit-pdf-report-sample.png" width="800" alt="PDF Audit Report Sample" />
+</div>
+
+---
+
 ## Core Capabilities
 
 CF Studio includes high-tier features for comprehensive management:
 - **Bulk Data Export**: Export table data instantly to multiple formats.
+- **Professional Audit Reports**: Generate vector-based PDF reports for domain health.
 - **R2 Bucket Creation & Deletion**: Create and manage R2 buckets natively.
 - **Advanced Indexing**: Full interactive control over D1 indexes.
 
