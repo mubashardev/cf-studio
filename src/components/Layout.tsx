@@ -219,8 +219,9 @@ function Sidebar({
 
       {/* User Profile */}
       {!collapsed && activeAccount && (() => {
-        const blurAccount = privacySettings.enabled && privacySettings.accountInfo;
-        const blurClass = "blur-[4px] hover:blur-none transition-all duration-200 select-none hover:select-auto cursor-default";
+        const blurAmount = privacySettings.enabled && privacySettings.accountInfo ? privacySettings.blurAmount : 0;
+        const blurStyle = blurAmount > 0 ? { filter: `blur(${blurAmount}px)` } : {};
+        const blurClass = "transition-all duration-200 select-none hover:select-auto cursor-default";
         
         return (
           <div className="px-3 py-3 border-t border-sidebar-border shrink-0 flex items-center gap-2.5 bg-sidebar-accent/10">
@@ -228,10 +229,10 @@ function Sidebar({
               {(activeAccount.name.trim().charAt(0) || "?").toUpperCase()}
             </div>
             <div className="flex flex-col min-w-0">
-              <span className={cn("text-sm font-medium text-sidebar-foreground leading-tight truncate", blurAccount && blurClass)}>
+              <span className={cn("text-sm font-medium text-sidebar-foreground leading-tight truncate", blurClass)} style={blurStyle}>
                 {activeAccount.name}
               </span>
-              <span className={cn("text-[10px] text-sidebar-foreground/50 leading-tight truncate", blurAccount && blurClass)}>
+              <span className={cn("text-[10px] text-sidebar-foreground/50 leading-tight truncate", blurClass)} style={blurStyle}>
                 {userProfile?.email ?? ""}
               </span>
             </div>

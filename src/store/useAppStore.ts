@@ -27,6 +27,7 @@ export interface PrivacySettings {
   tableNames: boolean;
   r2BucketNames: boolean;
   r2FileNames: boolean;
+  blurAmount: number;
 }
 
 // ── KV placeholder type (populated in a future step) ─────────────────────────
@@ -159,6 +160,7 @@ export const useAppStore = create<AppState>()(
         tableNames: true,
         r2BucketNames: true,
         r2FileNames: true,
+        blurAmount: 5,
       },
       saveQueryResultsEnabled: false,
       saveQueryResultsRowLimit: 50,

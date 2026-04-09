@@ -386,6 +386,50 @@ export function SettingsView() {
                           </div>
                         </div>
                       ))}
+
+                      <div className="pt-6 border-t border-border/50 mt-2 space-y-6">
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <div className="space-y-0.5">
+                              <Label className="text-sm font-medium">Blur Intensity</Label>
+                              <p className="text-xs text-muted-foreground">Adjust how much the sensitive data is blurred.</p>
+                            </div>
+                            <Badge variant="secondary" className="font-mono">{privacySettings.blurAmount}px</Badge>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Low</span>
+                            <input 
+                              type="range" 
+                              min="0" 
+                              max="20" 
+                              step="1"
+                              value={privacySettings.blurAmount}
+                              onChange={(e) => setPrivacySettings({ blurAmount: parseInt(e.target.value, 10) })}
+                              className="flex-1 h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary border-none focus:ring-1 focus:ring-primary/20"
+                            />
+                            <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">High</span>
+                          </div>
+                        </div>
+
+                        <div className="p-6 rounded-2xl bg-muted/30 border border-dashed border-border flex flex-col items-center justify-center gap-4">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 mb-1">Privacy Shield Preview</p>
+                          <div className="flex flex-col items-center gap-3">
+                             <div className="text-2xl font-black tracking-tight relative">
+                                <span style={{ filter: `blur(${privacySettings.blurAmount}px)` }} className="transition-all duration-300">
+                                  example-domain.com
+                                </span>
+                                {privacySettings.blurAmount === 0 && (
+                                   <span className="absolute -top-6 -right-6 text-[10px] bg-red-500/10 text-red-500 px-2 py-0.5 rounded-full font-bold animate-bounce border border-red-500/20">Visible</span>
+                                )}
+                             </div>
+                             <p className="text-xs text-muted-foreground italic max-w-[200px] text-center">
+                               {privacySettings.blurAmount > 0 
+                                 ? "Sensitive domain names will look like this across the app." 
+                                 : "Blur is disabled. Data will be fully visible."}
+                             </p>
+                          </div>
+                        </div>
+                      </div>
                    </div>
                 </CardContent>
               </Card>
