@@ -81,36 +81,36 @@
 /* ── Dark theme (Cloudflare-style) ──────────────────────── */
 .dark {
   /* Core */
-  --background:          hsl(240 10% 10%);
+  --background:          #000000;
   --foreground:          hsl(240 5% 96%);
 
   /* Surfaces — layered dark */
-  --card:                hsl(240 10% 14%);
+  --card:                #050505;
   --card-foreground:     hsl(240 5% 96%);
-  --popover:             hsl(240 10% 14%);
-  --popover-foreground:  hsl(240 5% 96%);
+  --popover:             #050505;
+  --popover-foreground:  hsl(0 0% 96%);
 
   /* Brand */
   --primary:             hsl(27 90% 54%);
-  --primary-foreground:  hsl(240 10% 10%);
+  --primary-foreground:  #000000;
 
   /* Secondary / Muted */
-  --secondary:           hsl(240 10% 18%);
+  --secondary:           #080808;
   --secondary-foreground: hsl(240 5% 82%);
-  --muted:               hsl(240 10% 18%);
+  --muted:               #080808;
   --muted-foreground:    hsl(240 5% 54%);
 
   /* Accent */
-  --accent:              hsl(27 90% 22%);
+  --accent:              #0a0a0a;
   --accent-foreground:   hsl(27 90% 92%);
 
   /* Destructive */
   --destructive:         hsl(0 80% 40%);
-  --destructive-foreground: hsl(240 10% 10%);
+  --destructive-foreground: #000000;
 
   /* Borders / Inputs */
-  --border:              hsl(240 10% 20%);
-  --input:               hsl(240 10% 22%);
+  --border:              rgba(255, 255, 255, 0.08);
+  --input:               rgba(255, 255, 255, 0.08);
   --ring:                hsl(27 90% 54% / 45%);
 
   /* Charts */
@@ -120,14 +120,14 @@
   --chart-4:             hsl(25 80% 45%);
   --chart-5:             hsl(310 60% 40%);
 
-  /* Sidebar — slightly elevated surface */
-  --sidebar:                   hsl(240 10% 13%);
+  /* Sidebar — exact pure black match */
+  --sidebar:                   #000000;
   --sidebar-foreground:        hsl(240 5% 82%);
   --sidebar-primary:           hsl(27 90% 54%);
-  --sidebar-primary-foreground: hsl(240 10% 10%);
-  --sidebar-accent:            hsl(27 90% 22%);
-  --sidebar-accent-foreground: hsl(27 90% 92%);
-  --sidebar-border:            hsl(240 10% 20%);
+  --sidebar-primary-foreground: #000000;
+  --sidebar-accent:            #111111;
+  --sidebar-accent-foreground: hsl(0 0% 96%);
+  --sidebar-border:            rgba(255, 255, 255, 0.06);
   --sidebar-ring:              hsl(27 90% 54% / 45%);
 }
 

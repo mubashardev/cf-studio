@@ -224,7 +224,7 @@ function Sidebar({
         const blurClass = "transition-all duration-200 select-none hover:select-auto cursor-default";
         
         return (
-          <div className="px-3 py-3 border-t border-sidebar-border shrink-0 flex items-center gap-2.5 bg-sidebar-accent/10">
+          <div className="px-3 py-3 border-t border-sidebar-border shrink-0 flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs shrink-0 uppercase tracking-tight">
               {(activeAccount.name.trim().charAt(0) || "?").toUpperCase()}
             </div>
