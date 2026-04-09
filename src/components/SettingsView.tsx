@@ -25,7 +25,10 @@ import {
   User,
   ArrowRight,
   AlertTriangle,
-  Database
+  Database,
+  Sparkles,
+  Wrench,
+  History
 } from "lucide-react";
 import appVersion from "../../package.json";
 import changelogsData from "../../changelogs/changelogs.json";
@@ -36,6 +39,14 @@ import { Input } from "@/components/ui/input";
 import { useUpdater } from "@/hooks/useUpdater";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogDescription,
+  DialogTrigger 
+} from "@/components/ui/dialog";
 
 export function SettingsView() {
   const { theme, setTheme } = useTheme();
@@ -511,40 +522,157 @@ export function SettingsView() {
                     </div>
                   </div>
 
-                  <div className="pt-6 space-y-4">
-                    <h3 className="text-sm font-semibold flex items-center gap-2">
-                       <CheckCircle2 size={16} className="text-primary" />
-                       Changelog for {update?.version || appVersion.version}
-                    </h3>
-                    <div className="space-y-4 p-4 rounded-xl bg-background/50 border border-border/50">
+                    <div className="pt-6 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold flex items-center gap-2">
+                         <CheckCircle2 size={16} className="text-primary" />
+                         Changelog for {update?.version || appVersion.version}
+                      </h3>
+                      
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-8 text-xs font-semibold gap-1.5 hover:bg-primary/5 hover:text-primary transition-all">
+                            <History size={14} />
+                            Full History
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-4xl p-0 overflow-hidden !gap-0">
+                          <div className="flex flex-col h-[650px] !flex !flex-col">
+                            <div className="shrink-0 p-8 pb-6 border-b border-border/20 bg-background/95 backdrop-blur-md">
+                              <DialogTitle className="text-3xl font-black flex items-center gap-3 mb-2">
+                                <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-sm">
+                                  <History size={24} />
+                                </div>
+                                Changelog History
+                              </DialogTitle>
+                              <DialogDescription className="text-base text-muted-foreground/80">
+                                Every improvement and fix we've made to CF Studio.
+                              </DialogDescription>
+                            </div>
+                            
+                            <div className="flex-1 !overflow-y-auto p-8 min-h-0">
+                              <div className="space-y-12 pb-10">
+                                {changelogsData && changelogsData.length > 0 ? (
+                                  changelogsData.map((log, idx) => (
+                                    <div key={log.version} className="relative pl-10">
+                                      {/* Timeline line */}
+                                      {idx !== changelogsData.length - 1 && (
+                                        <div className="absolute left-[13px] top-8 bottom-[-48px] w-px bg-border/60" />
+                                      )}
+                                      
+                                      {/* Version indicator */}
+                                      <div className="absolute left-0 top-1.5 w-[27px] h-[27px] rounded-full bg-background border-2 border-primary/40 flex items-center justify-center z-10 shadow-sm">
+                                        <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                                      </div>
+                                      
+                                      <div className="space-y-6">
+                                        <div className="flex items-baseline justify-between gap-4 border-b border-border/40 pb-2">
+                                          <h4 className="text-xl font-bold tracking-tight">Version {log.version.replace(/^v/, "")}</h4>
+                                          <span className="text-xs font-mono font-bold text-muted-foreground bg-muted/40 px-3 py-1 rounded-full border border-border/30">
+                                            {new Date(log.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                                          </span>
+                                        </div>
+                                        
+                                        <div className="space-y-6">
+                                          {log.features && log.features.length > 0 && (
+                                            <div className="space-y-3">
+                                              <div className="flex items-center gap-2 text-[11px] font-black text-orange-500 uppercase tracking-[0.25em] opacity-80">
+                                                <Sparkles size={14} strokeWidth={2.5} />
+                                                Features
+                                              </div>
+                                              <div className="space-y-3">
+                                                {log.features.map((f, i) => (
+                                                  <div key={i} className="flex gap-4 text-[15px] leading-relaxed text-foreground/90 group">
+                                                    <div className="mt-2 h-2 w-2 rounded-full bg-orange-500/20 shrink-0 border border-orange-500/40 transition-colors group-hover:bg-orange-500 group-hover:border-orange-500" />
+                                                    <span>{f}</span>
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            </div>
+                                          )}
+                                          
+                                          {log.fixes && log.fixes.length > 0 && (
+                                            <div className="space-y-3">
+                                              <div className="flex items-center gap-2 text-[11px] font-black text-emerald-500 uppercase tracking-[0.25em] opacity-80">
+                                                <Wrench size={14} strokeWidth={2.5} />
+                                                Fixes
+                                              </div>
+                                              <div className="space-y-3">
+                                                {log.fixes.map((f, i) => (
+                                                  <div key={i} className="flex gap-4 text-[15px] leading-relaxed text-foreground/90 group">
+                                                    <div className="mt-2 h-2 w-2 rounded-full bg-emerald-500/20 shrink-0 border border-emerald-500/40 transition-colors group-hover:bg-emerald-500 group-hover:border-emerald-500" />
+                                                    <span>{f}</span>
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <div className="text-center py-10 text-muted-foreground">No history available</div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+
+                    <div className="p-5 rounded-2xl bg-muted/20 border border-border/40 space-y-5">
                         {update?.isManualDetection ? (
                           <div className="space-y-4">
                             {update.body.split("\n").map((f: string, i: number) => (
-                              <div key={i} className="flex gap-3 text-sm">
-                                <span className="text-primary font-bold opacity-50 select-none">•</span>
-                                <span>{f}</span>
+                              <div key={i} className="flex gap-3 text-sm group">
+                                <span className="text-primary/30 font-bold select-none transition-colors group-hover:text-primary">•</span>
+                                <span className="text-foreground/80 leading-relaxed">{f}</span>
                               </div>
                             ))}
                           </div>
-                        ) : nextChangelog ? (
-                          <div className="space-y-4">
-                            {[...(nextChangelog.features || []), ...(nextChangelog.fixes || [])].map((f, i) => (
-                              <div key={i} className="flex gap-3 text-sm">
-                                <span className="text-primary font-bold opacity-50 select-none">•</span>
-                                <span>{f}</span>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="space-y-4">
-                            {[...(currentChangelog?.features || []), ...(currentChangelog?.fixes || [])].map((f, i) => (
-                              <div key={i} className="flex gap-3 text-sm">
-                                <span className="text-primary font-bold opacity-50 select-none">•</span>
-                                <span>{f}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                        ) : (() => {
+                          const log = nextChangelog || currentChangelog;
+                          if (!log) return <p className="text-xs text-muted-foreground italic">No details available for this version.</p>;
+                          
+                          return (
+                            <div className="space-y-6">
+                              {log.features && log.features.length > 0 && (
+                                <div className="space-y-3">
+                                  <div className="flex items-center gap-2 text-[10px] font-black text-orange-500 uppercase tracking-widest">
+                                    <Sparkles size={12} strokeWidth={2.5} />
+                                    Features
+                                  </div>
+                                  <div className="space-y-2.5">
+                                    {log.features.map((f, i) => (
+                                      <div key={i} className="flex gap-3 text-sm group">
+                                        <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-orange-500/30 shrink-0 transition-colors group-hover:bg-orange-500" />
+                                        <span className="text-foreground/80 leading-relaxed">{f}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {log.fixes && log.fixes.length > 0 && (
+                                <div className="space-y-3">
+                                  <div className="flex items-center gap-2 text-[10px] font-black text-emerald-500 uppercase tracking-widest">
+                                    <Wrench size={12} strokeWidth={2.5} />
+                                    Fixes
+                                  </div>
+                                  <div className="space-y-2.5">
+                                    {log.fixes.map((f, i) => (
+                                      <div key={i} className="flex gap-3 text-sm group">
+                                        <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-emerald-500/30 shrink-0 transition-colors group-hover:bg-emerald-500" />
+                                        <span className="text-foreground/80 leading-relaxed">{f}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
                     </div>
                   </div>
                 </CardContent>

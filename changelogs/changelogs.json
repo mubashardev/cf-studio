@@ -20,8 +20,7 @@
   {
     "version": "1.1.7",
     "date": "2026-03-31",
-    "features": [
-    ],
+    "features": [],
     "fixes": [
       "Fixed R2 Uploading Large files"
     ]
@@ -40,9 +39,7 @@
   {
     "version": "1.1.5",
     "date": "2026-03-29",
-    "features": [
-
-    ],
+    "features": [],
     "fixes": [
       "Fixed Windows build error"
     ]
@@ -53,9 +50,7 @@
     "features": [
       "Added D1 Query History feature with statistics to track usage perfectly"
     ],
-    "fixes": [
-
-    ]
+    "fixes": []
   },
   {
     "version": "1.1.2",
