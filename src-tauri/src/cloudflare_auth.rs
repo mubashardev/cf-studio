@@ -321,6 +321,37 @@ pub async fn run_wrangler_login() -> Result<(), AuthError> {
     Ok(())
 }
 
+#[tauri::command]
+pub async fn run_wrangler_logout() -> Result<(), AuthError> {
+    tokio::task::spawn_blocking(|| {
+        let res = if cfg!(target_os = "windows") {
+            let mut c = std::process::Command::new("cmd");
+            c.args(["/c", "start", "cmd", "/c", "npx wrangler logout ^&^& pause"]);
+            c.output()
+        } else if cfg!(target_os = "macos") {
+            let mut c = std::process::Command::new("osascript");
+            let script = "tell application \"Terminal\" to do script \"npx wrangler logout\"";
+            c.args(["-e", script]);
+            c.output()
+        } else {
+            let mut c = std::process::Command::new("sh");
+            c.args(["-c", "npx wrangler logout"]);
+            c.output()
+        };
+
+        match res {
+            Ok(output) if !output.status.success() => {
+                let err = String::from_utf8_lossy(&output.stderr).to_string();
+                Err(AuthError::ExecError(err))
+            }
+            Ok(_) => Ok(()),
+            Err(e) => Err(AuthError::Io(e)),
+        }
+    })
+    .await
+    .map_err(|e| AuthError::ExecError(e.to_string()))?
+}
+
 pub fn start_wrangler_watcher(app: tauri::AppHandle) {
     use notify::{Watcher, RecursiveMode};
     use std::sync::mpsc::channel;

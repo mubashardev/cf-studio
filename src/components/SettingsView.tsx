@@ -28,8 +28,10 @@ import {
   Database,
   Sparkles,
   Wrench,
-  History
+  History,
+  LogOut
 } from "lucide-react";
+import { ask } from "@tauri-apps/plugin-dialog";
 import appVersion from "../../package.json";
 import changelogsData from "../../changelogs/changelogs.json";
 import { Switch } from "@/components/ui/switch";
@@ -65,7 +67,53 @@ export function SettingsView() {
   const setSaveQueryResultsEnabled = useAppStore(s => s.setSaveQueryResultsEnabled);
   const saveQueryResultsRowLimit = useAppStore(s => s.saveQueryResultsRowLimit);
   const setSaveQueryResultsRowLimit = useAppStore(s => s.setSaveQueryResultsRowLimit);
+  const clearCache = useAppStore(s => s.clearCache);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    const confirmed = await ask(
+      "Are you sure you want to log out? This will clear your local cache and sign you out from the Cloudflare Wrangler session on this machine.",
+      {
+        title: "Confirm Logout",
+        kind: "warning",
+        okLabel: "Log Out",
+        cancelLabel: "Cancel",
+      }
+    );
+
+    if (confirmed) {
+      setIsLoggingOut(true);
+      try {
+        // 1. Run npx wrangler logout internally
+        await invoke("run_wrangler_logout");
+
+        // 2. Clear stored zone tokens for audits
+        await invoke("delete_zone_token").catch(console.error);
+
+        // 3. Wipe store cache
+        clearCache();
+
+        toast({
+          title: "Logged Out Successfully",
+          description: "Your session has been cleared.",
+        });
+
+        // 4. Force reload to ensure everything is reset
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+      } catch (e: any) {
+        toast({
+          title: "Logout Error",
+          description: String(e) || "Failed to log out properly.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoggingOut(false);
+      }
+    }
+  };
   
   const { toast } = useToast();
   const { status, update, downloadProgress, error, checkForUpdates, downloadUpdate } = useUpdater();
@@ -203,6 +251,38 @@ export function SettingsView() {
                       <p className="text-xs text-muted-foreground">Download and install updates automatically on startup.</p>
                     </div>
                     <Switch checked={autoUpdate} onCheckedChange={setAutoUpdate} />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-none shadow-md bg-red-500/5 border-red-500/10">
+                <CardHeader className="pb-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <LogOut size={18} className="text-red-500" />
+                    <CardTitle className="text-lg text-red-500">Danger Zone</CardTitle>
+                  </div>
+                  <CardDescription>Actions that affect your session and local data.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between p-4 border border-red-500/20 rounded-xl bg-red-500/5">
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold text-red-600 dark:text-red-400">Sign Out</p>
+                      <p className="text-xs text-muted-foreground">Log out from Cloudflare and clear all local cache.</p>
+                    </div>
+                    <Button 
+                      variant="destructive" 
+                      size="sm" 
+                      onClick={handleLogout} 
+                      disabled={isLoggingOut}
+                      className="h-9 px-4 font-bold shadow-lg shadow-red-500/10"
+                    >
+                      {isLoggingOut ? (
+                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <LogOut className="mr-2 h-4 w-4" />
+                      )}
+                      Log Out
+                    </Button>
                   </div>
                 </CardContent>
               </Card>

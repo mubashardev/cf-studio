@@ -164,6 +164,7 @@ pub fn run() {
             get_cloudflare_token,
             cloudflare_auth::refresh_wrangler_token,
             cloudflare_auth::run_wrangler_login,
+            cloudflare_auth::run_wrangler_logout,
             cloudflare_auth::fetch_cloudflare_accounts,
             d1::fetch_d1_databases,
             d1::execute_d1_query,
