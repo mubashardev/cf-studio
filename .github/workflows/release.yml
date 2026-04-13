@@ -91,7 +91,7 @@ jobs:
             echo "### macOS Note"
             echo "*You may need to run this command in your terminal after first open if getting any issue:*"
             echo ""
-            echo "\`xattr -cr /Applications/CF\ Studio.app\`"
+            echo "\`xattr -cr /Applications/CF-Studio.app\`"
             echo ""
             echo "### Windows Note"
             echo "*Windows SmartScreen may show a warning — click **\"More info\"** → **\"Run anyway\"** to proceed.*"
