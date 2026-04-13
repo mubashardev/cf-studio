@@ -3,10 +3,10 @@
     "version": "1.2.0",
     "date": "2026-04-14",
     "features": [
-      "Added Audit Export PDF Report feature"
+      "Added Logout feature"
     ],
     "fixes": [
-      "Fixed Audit Performance & Security Score"
+      "Fixed API token permissions bug"
     ]
   },
   {
