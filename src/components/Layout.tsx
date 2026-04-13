@@ -509,7 +509,7 @@ export function Layout() {
           />
 
           {/* Content area */}
-          <main className="flex-1 overflow-hidden p-6">
+          <main className="flex-1 overflow-y-auto custom-scrollbar p-6">
             <PageContent activeId={activeId} onNavigate={setActiveId} />
           </main>
         </div>
