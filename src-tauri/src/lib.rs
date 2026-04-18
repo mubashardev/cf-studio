@@ -182,6 +182,8 @@ pub fn run() {
             domain_audit_pro::get_zone_performance_settings,
             domain_audit_pro::get_zone_dns_health,
             domain_audit_pro::add_dns_record,
+            domain_audit_pro::check_active_token,
+            domain_audit_pro::analyze_domain,
             // ── R2 Public ──
             r2::fetch_r2_buckets,
             r2::list_r2_objects,

@@ -20,6 +20,7 @@ import {
   Shield,
   Zap,
   Mail,
+  ScanSearch,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme, type Theme } from "@/components/ThemeProvider";
@@ -39,6 +40,7 @@ import { PerformancePosture } from "@/pro_modules/ui/audits/PerformancePosture";
 import { DnsEmailPosture } from "@/pro_modules/ui/audits/DnsEmailPosture";
 import { AuditPreferences } from "@/pro_modules/ui/audits/AuditPreferences";
 import { Overview } from "@/pro_modules/ui/audits/Overview";
+import { DomainScanner } from "@/pro_modules/ui/audits/DomainScanner";
 import { useMemo } from "react";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -390,6 +392,7 @@ function PageContent({ activeId, onNavigate }: { activeId: string; onNavigate: (
   if (activeId === "r2") return <R2BucketsView />;
   if (activeId === "settings") return <SettingsView />;
   if (activeId === "audit") return <Overview onNavigate={onNavigate} />;
+  if (activeId === "audit-scanner") return <DomainScanner onNavigate={onNavigate} />;
   if (activeId === "audit-security") return <SecurityPosture />;
   if (activeId === "audit-performance") return <PerformancePosture />;
   if (activeId === "audit-dns") return <DnsEmailPosture />;
@@ -428,6 +431,7 @@ export function Layout() {
         label: "Audit & Optimization",
         items: [
           { id: "audit", label: "Overview", icon: Globe },
+          { id: "audit-scanner", label: "Domain Scanner", icon: ScanSearch },
           { id: "audit-security", label: "Security Posture", icon: Shield },
           { id: "audit-performance", label: "Performance", icon: Zap },
           { id: "audit-dns", label: "DNS & Email", icon: Mail },
